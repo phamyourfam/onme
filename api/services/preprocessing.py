@@ -44,3 +44,29 @@ def validate_image(file_path: str) -> tuple[int, int]:
         )
 
     return width, height
+
+
+def resize_for_model(
+    file_path: str,
+    target_w: int = 768,
+    target_h: int = 1024,
+) -> str:
+    """Resize *file_path* to (*target_w*, *target_h*) using LANCZOS resampling.
+
+    Non-RGB images (e.g. RGBA, P) are converted to RGB before resizing.
+    The result is saved as JPEG (quality 95) alongside the original with a
+    ``_resized`` suffix.
+
+    Returns:
+        The path to the newly created resized image.
+    """
+    with Image.open(file_path) as img:
+        if img.mode != "RGB":
+            img = img.convert("RGB")
+        resized = img.resize((target_w, target_h), Image.LANCZOS)
+
+    stem = Path(file_path).stem
+    parent = Path(file_path).parent
+    out_path = parent / f"{stem}_resized.jpg"
+    resized.save(str(out_path), format="JPEG", quality=95)
+    return str(out_path)
