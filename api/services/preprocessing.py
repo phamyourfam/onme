@@ -104,3 +104,72 @@ def normalise_lighting(file_path: str) -> str:
     out_path = parent / f"{stem}_clahe{ext}"
     cv2.imwrite(str(out_path), result_bgr)
     return str(out_path)
+
+
+def refine_mask(mask_path: str) -> str:
+    """Clean up a binary mask using morphological operations and Gaussian blur.
+
+    Steps:
+    1. Load as grayscale.
+    2. ``MORPH_CLOSE`` with a 5×5 elliptical kernel (fills small holes).
+    3. ``MORPH_OPEN`` with the same kernel (removes small noise).
+    4. ``GaussianBlur`` (5×5) for smoother edges.
+
+    The result is saved alongside the original with a ``_refined`` suffix.
+
+    Returns:
+        Path to the refined mask image.
+    """
+    import cv2
+    import numpy as np
+
+    mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
+    if mask is None:
+        raise ValueError(f"Cannot read mask: {mask_path}")
+
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+    mask = cv2.GaussianBlur(mask, (5, 5), 0)
+
+    stem = Path(mask_path).stem
+    parent = Path(mask_path).parent
+    ext = Path(mask_path).suffix or ".png"
+    out_path = parent / f"{stem}_refined{ext}"
+    cv2.imwrite(str(out_path), mask)
+    return str(out_path)
+
+
+def run_preprocessing(
+    person_path: str,
+    garment_path: str,
+    target_w: int = 768,
+    target_h: int = 1024,
+) -> dict[str, str]:
+    """Run the full preprocessing pipeline on a person and garment image pair.
+
+    1. Validate both images.
+    2. Resize both to (*target_w*, *target_h*).
+    3. Apply CLAHE lighting normalisation **only** to the person image.
+
+    Returns:
+        A dict with keys ``person_processed`` (CLAHE'd person),
+        ``garment_processed`` (resized garment), and ``person_resized``
+        (pre-CLAHE resized person, kept for ablation studies).
+    """
+    # 1 — validate
+    validate_image(person_path)
+    validate_image(garment_path)
+
+    # 2 — resize
+    person_resized = resize_for_model(person_path, target_w, target_h)
+    garment_resized = resize_for_model(garment_path, target_w, target_h)
+
+    # 3 — CLAHE on person only
+    person_clahe = normalise_lighting(person_resized)
+
+    return {
+        "person_processed": person_clahe,
+        "garment_processed": garment_resized,
+        "person_resized": person_resized,
+    }
