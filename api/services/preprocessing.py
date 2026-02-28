@@ -70,3 +70,37 @@ def resize_for_model(
     out_path = parent / f"{stem}_resized.jpg"
     resized.save(str(out_path), format="JPEG", quality=95)
     return str(out_path)
+
+
+def normalise_lighting(file_path: str) -> str:
+    """Apply CLAHE (Contrast-Limited Adaptive Histogram Equalisation) to *file_path*.
+
+    The image is converted from BGR to LAB colour space.  CLAHE is applied
+    to the L (lightness) channel, then the result is converted back to BGR
+    and saved alongside the original with a ``_clahe`` suffix.
+
+    Returns:
+        Path to the newly created normalised image.
+    """
+    import cv2
+    import numpy as np
+
+    img_bgr = cv2.imread(file_path)
+    if img_bgr is None:
+        raise ValueError(f"Cannot read image: {file_path}")
+
+    lab = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2LAB)
+    l_chan, a_chan, b_chan = cv2.split(lab)
+
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+    l_clahe = clahe.apply(l_chan)
+
+    merged = cv2.merge([l_clahe, a_chan, b_chan])
+    result_bgr = cv2.cvtColor(merged, cv2.COLOR_LAB2BGR)
+
+    stem = Path(file_path).stem
+    parent = Path(file_path).parent
+    ext = Path(file_path).suffix or ".jpg"
+    out_path = parent / f"{stem}_clahe{ext}"
+    cv2.imwrite(str(out_path), result_bgr)
+    return str(out_path)
