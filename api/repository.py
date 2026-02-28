@@ -4,8 +4,8 @@ Data-access layer for Job persistence using raw SQLite.
 
 import sqlite3
 
-from database import get_connection
-from models import Job
+from api.database import get_connection
+from api.models import Job
 
 
 class JobRepository:
