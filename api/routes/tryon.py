@@ -2,11 +2,12 @@
 Virtual try-on upload and job status routes.
 """
 
+import json
 import os
 import uuid
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, File, Form, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 
 from api.config import settings
 from api.models import Job
@@ -61,4 +62,36 @@ async def create_tryon(
         error_message=job.error_message,
         intermediates=None,
         timing=None,
+    )
+
+
+@router.get("/tryon/{job_id}", response_model=JobResponse)
+async def get_tryon(job_id: str) -> JobResponse:
+    """Return the current state of a try-on job."""
+    job = _repo.get_job(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    intermediates = (
+        json.loads(job.intermediate_outputs)
+        if job.intermediate_outputs
+        else None
+    )
+    timing = {
+        "preprocessing_ms": job.preprocessing_ms,
+        "inference_ms": job.inference_ms,
+        "postprocessing_ms": job.postprocessing_ms,
+    }
+
+    return JobResponse(
+        id=job.id,
+        status=job.status,
+        model_name=job.model_name,
+        current_stage=job.current_stage,
+        created_at=job.created_at,
+        completed_at=job.completed_at,
+        result_url=job.result_image_path,
+        error_message=job.error_message,
+        intermediates=intermediates,
+        timing=timing,
     )
