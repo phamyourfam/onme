@@ -73,3 +73,23 @@ class JobRepository:
                 )
         finally:
             conn.close()
+
+    def update_job(self, job_id: str, **fields: object) -> None:
+        """Update one or more columns for the given job.
+
+        Accepts arbitrary keyword arguments whose keys must match
+        column names in the ``jobs`` table.
+        """
+        if not fields:
+            return
+        set_clause = ", ".join(f"{col} = ?" for col in fields)
+        values = list(fields.values()) + [job_id]
+        conn = get_connection()
+        try:
+            with conn:
+                conn.execute(
+                    f"UPDATE jobs SET {set_clause} WHERE id = ?",
+                    values,
+                )
+        finally:
+            conn.close()
