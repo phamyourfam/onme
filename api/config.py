@@ -3,7 +3,7 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     REPLICATE_API_TOKEN: str = ""
-    DATABASE_PATH: str = "fetch.db"
+    DATABASE_PATH: str = "app.db"
     UPLOAD_DIR: str = "uploads"
     RESULTS_DIR: str = "results"
     ALLOWED_ORIGINS: str = "http://localhost:5173"
