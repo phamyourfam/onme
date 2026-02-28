@@ -6,8 +6,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from config import settings
-from routes.health import router as health_router
+from api.config import settings
+from api.routes.health import router as health_router
 
 logger = logging.getLogger(__name__)
 

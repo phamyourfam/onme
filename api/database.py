@@ -8,7 +8,7 @@ by column name (dict-like) rather than positional index.
 
 import sqlite3
 
-from config import settings
+from api.config import settings
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS jobs (
