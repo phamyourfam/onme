@@ -11,6 +11,9 @@ from PIL import Image
 from api.services.preprocessing import (
     resize_for_model,
     validate_image,
+    normalise_lighting,
+    refine_mask,
+    run_preprocessing,
 )
 
 
@@ -135,3 +138,130 @@ class TestResizeForModel:
             os.unlink(path)
             if os.path.exists(out):
                 os.unlink(out)
+
+
+# ===== normalise_lighting (CLAHE) =====
+
+
+class TestNormaliseLighting:
+    """Tests for normalise_lighting."""
+
+    def test_clahe_brightens_dark_image(self):
+        """A very dark image should become brighter after CLAHE."""
+        import cv2
+        import numpy as np
+
+        # Create a dark 300×300 image (pixel values ~20)
+        dark = np.full((300, 300, 3), 20, dtype=np.uint8)
+        fd, path = tempfile.mkstemp(suffix=".png")
+        os.close(fd)
+        cv2.imwrite(path, dark)
+
+        try:
+            out = normalise_lighting(path)
+            result = cv2.imread(out)
+            # Mean brightness should increase
+            assert result.mean() >= dark.mean()
+        finally:
+            os.unlink(path)
+            if os.path.exists(out):
+                os.unlink(out)
+
+    def test_clahe_output_suffix(self):
+        path = _make_image(300, 300)
+        try:
+            out = normalise_lighting(path)
+            assert "_clahe" in out
+        finally:
+            os.unlink(path)
+            if os.path.exists(out):
+                os.unlink(out)
+
+
+# ===== refine_mask =====
+
+
+class TestRefineMask:
+    """Tests for refine_mask."""
+
+    def test_refine_mask_output(self):
+        """Refined mask should exist and have the _refined suffix."""
+        import cv2
+        import numpy as np
+
+        # Create a simple white-on-black mask
+        mask = np.zeros((300, 300), dtype=np.uint8)
+        mask[50:250, 50:250] = 255
+        fd, path = tempfile.mkstemp(suffix=".png")
+        os.close(fd)
+        cv2.imwrite(path, mask)
+
+        try:
+            out = refine_mask(path)
+            assert "_refined" in out
+            assert os.path.exists(out)
+            refined = cv2.imread(out, cv2.IMREAD_GRAYSCALE)
+            assert refined is not None
+            assert refined.shape == (300, 300)
+        finally:
+            os.unlink(path)
+            if os.path.exists(out):
+                os.unlink(out)
+
+    def test_refine_mask_removes_noise(self):
+        """Small isolated noise pixels should be removed by morphological open."""
+        import cv2
+        import numpy as np
+
+        mask = np.zeros((300, 300), dtype=np.uint8)
+        # Add a single pixel of noise
+        mask[150, 150] = 255
+        fd, path = tempfile.mkstemp(suffix=".png")
+        os.close(fd)
+        cv2.imwrite(path, mask)
+
+        try:
+            out = refine_mask(path)
+            refined = cv2.imread(out, cv2.IMREAD_GRAYSCALE)
+            # The single pixel should have been removed
+            assert refined.max() < 128
+        finally:
+            os.unlink(path)
+            if os.path.exists(out):
+                os.unlink(out)
+
+
+# ===== run_preprocessing (pipeline) =====
+
+
+class TestRunPreprocessing:
+    """Tests for run_preprocessing."""
+
+    def test_pipeline_returns_all_keys(self):
+        person = _make_image(512, 768)
+        garment = _make_image(400, 600)
+        created: list[str] = []
+        try:
+            result = run_preprocessing(person, garment)
+            created.extend(result.values())
+            assert "person_processed" in result
+            assert "garment_processed" in result
+            assert "person_resized" in result
+            for v in result.values():
+                assert os.path.exists(v)
+        finally:
+            os.unlink(person)
+            os.unlink(garment)
+            for p in created:
+                if os.path.exists(p):
+                    os.unlink(p)
+
+    def test_pipeline_rejects_tiny_image(self):
+        person = _make_image(100, 100)
+        garment = _make_image(512, 512)
+        try:
+            with pytest.raises(ValueError, match="too small"):
+                run_preprocessing(person, garment)
+        finally:
+            os.unlink(person)
+            os.unlink(garment)
