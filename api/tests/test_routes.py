@@ -24,6 +24,7 @@ def _dirs(tmp_path):
         patch("api.config.settings.DATABASE_PATH", db_path),
         patch("api.database.settings.DATABASE_PATH", db_path),
         patch("api.routes.tryon.settings.UPLOAD_DIR", upload_dir),
+        patch("api.routes.tryon.execute_tryon_job", lambda *a, **kw: None),
     ):
         from api.database import init_db
 

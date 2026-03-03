@@ -7,12 +7,13 @@ import os
 import uuid
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, UploadFile
 
 from api.config import settings
 from api.models import Job
 from api.repository import JobRepository
 from api.schemas import JobResponse
+from api.services.pipeline import execute_tryon_job
 
 router = APIRouter(tags=["tryon"])
 
@@ -21,6 +22,7 @@ _repo = JobRepository()
 
 @router.post("/tryon", response_model=JobResponse)
 async def create_tryon(
+    background_tasks: BackgroundTasks,
     person: UploadFile = File(...),
     garment: UploadFile = File(...),
     model_name: str = Form(...),
@@ -50,6 +52,7 @@ async def create_tryon(
         created_at=now,
     )
     _repo.create_job(job)
+    background_tasks.add_task(execute_tryon_job, job.id)
 
     return JobResponse(
         id=job.id,
