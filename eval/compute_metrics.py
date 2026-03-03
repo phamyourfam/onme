@@ -10,7 +10,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import lpips as lpips_lib
 import numpy as np
+import torch
 from PIL import Image
 from skimage.metrics import peak_signal_noise_ratio, structural_similarity
 
@@ -44,3 +46,41 @@ def compute_ssim_psnr(img1_path: str | Path, img2_path: str | Path) -> dict:
     psnr_value: float = peak_signal_noise_ratio(img1, img2, data_range=255.0)
 
     return {"ssim": float(ssim_value), "psnr": float(psnr_value)}
+
+
+def compute_lpips(
+    img1_path: str | Path,
+    img2_path: str | Path,
+    model: lpips_lib.LPIPS | None = None,
+) -> float:
+    """Compute LPIPS perceptual distance between two images.
+
+    LPIPS (Learned Perceptual Image Patch Similarity) measures the
+    perceptual distance between two images using deep features extracted
+    from a pre-trained network.  **Lower values indicate that the images
+    look more similar to human observers.**  A score of 0 means the images
+    are perceptually identical.
+
+    Args:
+        img1_path: Path to the first image (e.g. generated result).
+        img2_path: Path to the second image (e.g. ground truth).
+        model: Pre-loaded ``lpips.LPIPS`` model.  If ``None``, a new model
+            with the AlexNet backbone is instantiated automatically.
+
+    Returns:
+        The LPIPS distance as a Python float (lower is better).
+    """
+    if model is None:
+        model = lpips_lib.LPIPS(net="alex")
+    model.eval()
+
+    img1 = Image.open(img1_path).convert("RGB").resize((256, 256))
+    img2 = Image.open(img2_path).convert("RGB").resize((256, 256))
+
+    tensor1 = torch.from_numpy(np.asarray(img1, dtype=np.float32)).permute(2, 0, 1).unsqueeze(0) / 127.5 - 1.0
+    tensor2 = torch.from_numpy(np.asarray(img2, dtype=np.float32)).permute(2, 0, 1).unsqueeze(0) / 127.5 - 1.0
+
+    with torch.no_grad():
+        distance = model(tensor1, tensor2)
+
+    return float(distance.item())
