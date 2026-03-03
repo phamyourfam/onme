@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import os
-import shutil
 import time
 from datetime import datetime, timezone
 
@@ -12,6 +11,7 @@ from api.config import settings
 from api.models import Job
 from api.repository import JobRepository
 from api.services.inference import run_and_save_sync
+from api.services.postprocessing import run_postprocessing
 from api.services.preprocessing import run_preprocessing
 
 _repo = JobRepository()
@@ -72,13 +72,11 @@ def execute_tryon_job(job_id: str) -> None:
             intermediate_outputs=json.dumps(intermediates),
         )
 
-        # ── Stage 3: Postprocessing (placeholder) ───────────────────
+        # ── Stage 3: Postprocessing ────────────────────────────────
         _repo.update_job(job_id, status="postprocessing", current_stage="postprocessing")
 
         t0 = time.monotonic()
-        final_output_path = os.path.join(settings.RESULTS_DIR, f"{job_id}_result.jpg")
-        # TODO: Replace with Reinhard colour transfer in Epic 4
-        shutil.copy2(raw_output_path, final_output_path)
+        final_output_path = run_postprocessing(raw_output_path, result["garment_processed"])
         timing["postprocessing_ms"] = int((time.monotonic() - t0) * 1000)
 
         intermediates["colour_corrected"] = final_output_path
