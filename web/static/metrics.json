@@ -1,0 +1,31 @@
+{
+	"models": [
+		{
+			"name": "CatVTON",
+			"fid": null,
+			"lpips": null,
+			"ssim": null,
+			"psnr": null,
+			"clip_score": null,
+			"avg_latency_ms": null,
+			"sample_count": 0
+		},
+		{
+			"name": "OOTDiffusion",
+			"fid": null,
+			"lpips": null,
+			"ssim": null,
+			"psnr": null,
+			"clip_score": null,
+			"avg_latency_ms": null,
+			"sample_count": 0
+		}
+	],
+	"ablation": {
+		"with_clahe": { "ssim": null, "lpips": null, "psnr": null },
+		"without_clahe": { "ssim": null, "lpips": null, "psnr": null },
+		"with_colour_correction": { "ssim": null, "lpips": null, "psnr": null },
+		"without_colour_correction": { "ssim": null, "lpips": null, "psnr": null }
+	},
+	"last_updated": null
+}
