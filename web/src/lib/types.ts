@@ -23,7 +23,7 @@ export interface JobStatus {
 }
 
 /** Data stored in each pipeline visualisation node. */
-export interface PipelineNodeData {
+export interface PipelineNodeData extends Record<string, unknown> {
 	label: string;
 	stage: string;
 	imageUrl: string | null;
