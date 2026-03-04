@@ -19,6 +19,9 @@ router = APIRouter(tags=["tryon"])
 
 _repo = JobRepository()
 
+VALID_MODELS = {"catvton", "ootdiffusion"}
+ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp"}
+
 
 @router.post("/tryon", response_model=JobResponse)
 async def create_tryon(
@@ -28,6 +31,19 @@ async def create_tryon(
     model_name: str = Form(...),
 ) -> JobResponse:
     """Accept person and garment images, create a try-on job."""
+    if model_name not in VALID_MODELS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid model_name '{model_name}'. Must be one of: {', '.join(sorted(VALID_MODELS))}",
+        )
+
+    for label, upload in [("person", person), ("garment", garment)]:
+        if upload.content_type not in ALLOWED_CONTENT_TYPES:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid content type for {label}: '{upload.content_type}'. Must be an image (JPEG, PNG, or WebP).",
+            )
+
     job_id = uuid.uuid4().hex
 
     person_filename = f"{job_id}_person_{person.filename}"
