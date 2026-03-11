@@ -11,6 +11,7 @@ from api.config import settings
 from api.database import init_db
 from api.routes.auth import router as auth_router
 from api.routes.health import router as health_router
+from api.routes.moodboards import router as moodboards_router
 from api.routes.tryon import router as tryon_router
 
 logger = logging.getLogger(__name__)
@@ -39,6 +40,7 @@ app.add_middleware(
 app.include_router(health_router)
 app.include_router(auth_router)
 app.include_router(tryon_router)
+app.include_router(moodboards_router)
 
 app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads")
 app.mount("/results", StaticFiles(directory=settings.RESULTS_DIR), name="results")
