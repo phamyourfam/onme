@@ -51,6 +51,7 @@ class Job:
     preprocessing_ms: int | None = None
     inference_ms: int | None = None
     postprocessing_ms: int | None = None
+    user_id: str | None = None
 
 
 @dataclass

@@ -24,8 +24,9 @@ class JobRepository:
                         result_image_path, intermediate_outputs,
                         error_message, current_stage,
                         created_at, completed_at,
-                        preprocessing_ms, inference_ms, postprocessing_ms
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        preprocessing_ms, inference_ms,
+                        postprocessing_ms, user_id
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         job.id,
@@ -42,6 +43,7 @@ class JobRepository:
                         job.preprocessing_ms,
                         job.inference_ms,
                         job.postprocessing_ms,
+                        job.user_id,
                     ),
                 )
         finally:
@@ -93,3 +95,24 @@ class JobRepository:
                 )
         finally:
             conn.close()
+
+    def get_jobs_by_user(self, user_id: str) -> list[Job]:
+        """Fetch all jobs for a given user, newest first.
+
+        Args:
+            user_id: The user ID to filter by.
+
+        Returns:
+            A list of Job instances ordered by created_at DESC.
+        """
+        conn = get_connection()
+        try:
+            rows = conn.execute(
+                "SELECT * FROM jobs WHERE user_id = ? "
+                "ORDER BY created_at DESC",
+                (user_id,),
+            ).fetchall()
+        finally:
+            conn.close()
+
+        return [Job(**dict(row)) for row in rows]
