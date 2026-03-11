@@ -3,10 +3,8 @@
 import uuid
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
-from fastapi import Depends
-from pydantic import BaseModel
 
 from api.auth import (
     create_access_token,
@@ -15,19 +13,17 @@ from api.auth import (
 )
 from api.models import User
 from api.repositories.user_repo import create_user, get_user_by_email
+from api.schemas import (
+    LoginResponse,
+    RegisterRequest,
+    RegisterResponse,
+)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
-class _RegisterBody(BaseModel):
-    """JSON body for user registration."""
-
-    email: str
-    password: str
-
-
-@router.post("/register")
-def register(body: _RegisterBody) -> dict:
+@router.post("/register", response_model=RegisterResponse)
+def register(body: RegisterRequest) -> RegisterResponse:
     """Register a new user account.
 
     Args:
@@ -57,13 +53,15 @@ def register(body: _RegisterBody) -> dict:
     create_user(user)
     token = create_access_token(user.id)
 
-    return {"id": user.id, "email": user.email, "token": token}
+    return RegisterResponse(
+        id=user.id, email=user.email, token=token
+    )
 
 
-@router.post("/login")
+@router.post("/login", response_model=LoginResponse)
 def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
-) -> dict:
+) -> LoginResponse:
     """Authenticate and return an access token.
 
     Uses OAuth2 password form: username (email) + password.
@@ -86,4 +84,4 @@ def login(
         )
 
     token = create_access_token(user.id)
-    return {"access_token": token, "token_type": "bearer"}
+    return LoginResponse(access_token=token, token_type="bearer")

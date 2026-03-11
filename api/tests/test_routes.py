@@ -42,6 +42,16 @@ def client(_dirs):
     return TestClient(app, raise_server_exceptions=False)
 
 
+def _register_and_get_headers(client):
+    """Register a test user and return auth headers."""
+    resp = client.post(
+        "/auth/register",
+        json={"email": "test@example.com", "password": "password123"},
+    )
+    token = resp.json()["token"]
+    return {"Authorization": f"Bearer {token}"}
+
+
 # ── Health ──────────────────────────────────────────────────────────
 
 
@@ -57,12 +67,14 @@ def test_health(client):
 
 
 def test_upload_success(client):
+    headers = _register_and_get_headers(client)
     person = ("person.jpg", io.BytesIO(b"\xff\xd8fake-person"), "image/jpeg")
     garment = ("garment.jpg", io.BytesIO(b"\xff\xd8fake-garment"), "image/jpeg")
     resp = client.post(
         "/tryon",
         files={"person": person, "garment": garment},
         data={"model_name": "catvton"},
+        headers=headers,
     )
     assert resp.status_code == 200
     body = resp.json()
@@ -72,21 +84,25 @@ def test_upload_success(client):
 
 
 def test_upload_rejects_missing_person(client):
+    headers = _register_and_get_headers(client)
     garment = ("garment.jpg", io.BytesIO(b"\xff\xd8fake"), "image/jpeg")
     resp = client.post(
         "/tryon",
         files={"garment": garment},
         data={"model_name": "catvton"},
+        headers=headers,
     )
     assert resp.status_code == 422
 
 
 def test_upload_rejects_missing_model_name(client):
+    headers = _register_and_get_headers(client)
     person = ("person.jpg", io.BytesIO(b"\xff\xd8fake"), "image/jpeg")
     garment = ("garment.jpg", io.BytesIO(b"\xff\xd8fake"), "image/jpeg")
     resp = client.post(
         "/tryon",
         files={"person": person, "garment": garment},
+        headers=headers,
     )
     assert resp.status_code == 422
 
@@ -95,6 +111,7 @@ def test_upload_rejects_missing_model_name(client):
 
 
 def test_get_job_success(client):
+    headers = _register_and_get_headers(client)
     # First create a job
     person = ("person.jpg", io.BytesIO(b"\xff\xd8fake-person"), "image/jpeg")
     garment = ("garment.jpg", io.BytesIO(b"\xff\xd8fake-garment"), "image/jpeg")
@@ -102,6 +119,7 @@ def test_get_job_success(client):
         "/tryon",
         files={"person": person, "garment": garment},
         data={"model_name": "catvton"},
+        headers=headers,
     )
     job_id = create_resp.json()["id"]
 

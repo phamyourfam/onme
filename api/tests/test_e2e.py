@@ -50,11 +50,22 @@ def client(_dirs):
     return TestClient(app, raise_server_exceptions=False)
 
 
+def _register_and_get_headers(client):
+    """Register a test user and return auth headers."""
+    resp = client.post(
+        "/auth/register",
+        json={"email": "e2e@example.com", "password": "password123"},
+    )
+    token = resp.json()["token"]
+    return {"Authorization": f"Bearer {token}"}
+
+
 # ── Test 1: Upload and Poll ────────────────────────────────────────
 
 
 def test_upload_and_poll(client):
     """POST two images, then GET the job by ID to verify the upload-to-poll flow."""
+    headers = _register_and_get_headers(client)
     person_buf = _make_jpeg()
     garment_buf = _make_jpeg()
 
@@ -65,6 +76,7 @@ def test_upload_and_poll(client):
             "garment": ("garment.jpg", garment_buf, "image/jpeg"),
         },
         data={"model_name": "catvton"},
+        headers=headers,
     )
     assert resp.status_code == 200
     body = resp.json()
@@ -84,6 +96,7 @@ def test_upload_and_poll(client):
 
 def test_rejects_invalid_inputs(client):
     """Verify the API rejects bad content types, invalid model names, and missing jobs."""
+    headers = _register_and_get_headers(client)
     person_buf = _make_jpeg()
     garment_buf = _make_jpeg()
 
@@ -96,6 +109,7 @@ def test_rejects_invalid_inputs(client):
             "garment": ("garment.jpg", garment_buf, "image/jpeg"),
         },
         data={"model_name": "catvton"},
+        headers=headers,
     )
     assert resp.status_code == 400
 
@@ -109,6 +123,7 @@ def test_rejects_invalid_inputs(client):
             "garment": ("garment.jpg", garment_buf, "image/jpeg"),
         },
         data={"model_name": "nonexistent_model"},
+        headers=headers,
     )
     assert resp.status_code == 400
 
@@ -147,6 +162,15 @@ def test_full_pipeline_with_replicate(tmp_path):
 
         client = TestClient(app, raise_server_exceptions=False)
 
+        # Register a user for auth
+        reg_resp = client.post(
+            "/auth/register",
+            json={"email": "e2e-full@example.com", "password": "pass"},
+        )
+        headers = {
+            "Authorization": f"Bearer {reg_resp.json()['token']}"
+        }
+
         person_buf = _make_jpeg()
         garment_buf = _make_jpeg()
 
@@ -157,6 +181,7 @@ def test_full_pipeline_with_replicate(tmp_path):
                 "garment": ("garment.jpg", garment_buf, "image/jpeg"),
             },
             data={"model_name": "catvton"},
+            headers=headers,
         )
         assert resp.status_code == 200
         job_id = resp.json()["id"]

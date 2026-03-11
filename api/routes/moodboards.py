@@ -5,7 +5,6 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
-from pydantic import BaseModel
 
 from api.auth import get_current_user
 from api.models import Moodboard
@@ -17,33 +16,27 @@ from api.repositories.moodboard_repo import (
     update_moodboard_canvas as repo_update_canvas,
     update_moodboard_title as repo_update_title,
 )
+from api.schemas import (
+    MoodboardCanvasUpdate,
+    MoodboardDetail,
+    MoodboardSummary,
+    MoodboardTitleUpdate,
+)
 
 router = APIRouter(prefix="/moodboards", tags=["moodboards"])
 
 
-class _CreateBody(BaseModel):
+class _CreateBody(MoodboardTitleUpdate):
     """Optional JSON body for moodboard creation."""
 
     title: str = "Untitled"
 
 
-class _CanvasUpdateBody(BaseModel):
-    """JSON body for canvas state updates."""
-
-    canvas_state: str
-
-
-class _TitleUpdateBody(BaseModel):
-    """JSON body for title updates."""
-
-    title: str
-
-
-@router.post("/")
+@router.post("/", response_model=MoodboardDetail)
 def create_moodboard(
     body: _CreateBody | None = None,
     user_id: str = Depends(get_current_user),
-) -> dict:
+) -> MoodboardDetail:
     """Create a new moodboard for the authenticated user.
 
     Args:
@@ -51,7 +44,7 @@ def create_moodboard(
         user_id: Injected by the auth dependency.
 
     Returns:
-        A dict with id, title, created_at, and updated_at.
+        A MoodboardDetail with id, title, created_at, updated_at.
     """
     now = datetime.now(timezone.utc).isoformat()
     title = body.title if body else "Untitled"
@@ -63,18 +56,19 @@ def create_moodboard(
         updated_at=now,
     )
     repo_create(moodboard)
-    return {
-        "id": moodboard.id,
-        "title": moodboard.title,
-        "created_at": moodboard.created_at,
-        "updated_at": moodboard.updated_at,
-    }
+    return MoodboardDetail(
+        id=moodboard.id,
+        title=moodboard.title,
+        canvas_state=moodboard.canvas_state,
+        created_at=moodboard.created_at,
+        updated_at=moodboard.updated_at,
+    )
 
 
-@router.get("/")
+@router.get("/", response_model=list[MoodboardSummary])
 def list_moodboards(
     user_id: str = Depends(get_current_user),
-) -> list[dict]:
+) -> list[MoodboardSummary]:
     """List all moodboards for the authenticated user.
 
     Does NOT include canvas_state in the response to keep
@@ -84,24 +78,24 @@ def list_moodboards(
         user_id: Injected by the auth dependency.
 
     Returns:
-        A list of dicts with id, title, and updated_at.
+        A list of MoodboardSummary objects.
     """
     moodboards = repo_list(user_id)
     return [
-        {
-            "id": m.id,
-            "title": m.title,
-            "updated_at": m.updated_at,
-        }
+        MoodboardSummary(
+            id=m.id,
+            title=m.title,
+            updated_at=m.updated_at,
+        )
         for m in moodboards
     ]
 
 
-@router.get("/{moodboard_id}")
+@router.get("/{moodboard_id}", response_model=MoodboardDetail)
 def get_moodboard(
     moodboard_id: str,
     user_id: str = Depends(get_current_user),
-) -> dict:
+) -> MoodboardDetail:
     """Get a single moodboard with full canvas state.
 
     Args:
@@ -109,7 +103,7 @@ def get_moodboard(
         user_id: Injected by the auth dependency.
 
     Returns:
-        Full moodboard data including canvas_state.
+        Full MoodboardDetail including canvas_state.
 
     Raises:
         HTTPException: 404 if not found, 403 if not owned.
@@ -122,19 +116,19 @@ def get_moodboard(
             status_code=403,
             detail="Not authorised to access this moodboard",
         )
-    return {
-        "id": mb.id,
-        "title": mb.title,
-        "canvas_state": mb.canvas_state,
-        "created_at": mb.created_at,
-        "updated_at": mb.updated_at,
-    }
+    return MoodboardDetail(
+        id=mb.id,
+        title=mb.title,
+        canvas_state=mb.canvas_state,
+        created_at=mb.created_at,
+        updated_at=mb.updated_at,
+    )
 
 
 @router.put("/{moodboard_id}/canvas")
 def update_canvas(
     moodboard_id: str,
-    body: _CanvasUpdateBody,
+    body: MoodboardCanvasUpdate,
     user_id: str = Depends(get_current_user),
 ) -> dict:
     """Update the canvas state of a moodboard.
@@ -166,7 +160,7 @@ def update_canvas(
 @router.put("/{moodboard_id}/title")
 def update_title(
     moodboard_id: str,
-    body: _TitleUpdateBody,
+    body: MoodboardTitleUpdate,
     user_id: str = Depends(get_current_user),
 ) -> dict:
     """Update the title of a moodboard.
