@@ -7,8 +7,17 @@ import os
 import uuid
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, UploadFile
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    UploadFile,
+)
 
+from api.auth import check_and_refresh_credits, get_current_user
 from api.config import settings
 from api.models import Job
 from api.repository import JobRepository
@@ -29,6 +38,7 @@ async def create_tryon(
     person: UploadFile = File(...),
     garment: UploadFile = File(...),
     model_name: str = Form(...),
+    user_id: str = Depends(get_current_user),
 ) -> JobResponse:
     """Accept person and garment images, create a try-on job."""
     if model_name not in VALID_MODELS:
@@ -43,6 +53,8 @@ async def create_tryon(
                 status_code=400,
                 detail=f"Invalid content type for {label}: '{upload.content_type}'. Must be an image (JPEG, PNG, or WebP).",
             )
+
+    check_and_refresh_credits(user_id)
 
     job_id = uuid.uuid4().hex
 
@@ -66,6 +78,7 @@ async def create_tryon(
         person_image_path=person_path,
         garment_image_path=garment_path,
         created_at=now,
+        user_id=user_id,
     )
     _repo.create_job(job)
     background_tasks.add_task(execute_tryon_job, job.id)
@@ -82,6 +95,48 @@ async def create_tryon(
         intermediates=None,
         timing=None,
     )
+
+
+@router.get("/tryon/history", response_model=list[JobResponse])
+async def get_tryon_history(
+    user_id: str = Depends(get_current_user),
+) -> list[JobResponse]:
+    """Return all jobs for the authenticated user, newest first.
+
+    Args:
+        user_id: Injected by the auth dependency.
+
+    Returns:
+        A list of JobResponse objects.
+    """
+    jobs = _repo.get_jobs_by_user(user_id)
+    results = []
+    for job in jobs:
+        intermediates = (
+            json.loads(job.intermediate_outputs)
+            if job.intermediate_outputs
+            else None
+        )
+        timing = {
+            "preprocessing_ms": job.preprocessing_ms,
+            "inference_ms": job.inference_ms,
+            "postprocessing_ms": job.postprocessing_ms,
+        }
+        results.append(
+            JobResponse(
+                id=job.id,
+                status=job.status,
+                model_name=job.model_name,
+                current_stage=job.current_stage,
+                created_at=job.created_at,
+                completed_at=job.completed_at,
+                result_url=job.result_image_path,
+                error_message=job.error_message,
+                intermediates=intermediates,
+                timing=timing,
+            )
+        )
+    return results
 
 
 @router.get("/tryon/{job_id}", response_model=JobResponse)
