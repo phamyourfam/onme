@@ -3,6 +3,7 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     REPLICATE_API_TOKEN: str = ""
+    JWT_SECRET: str = "dev-secret-change-in-production"
     DATABASE_PATH: str = "app.db"
     UPLOAD_DIR: str = "uploads"
     RESULTS_DIR: str = "results"
