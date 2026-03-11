@@ -27,6 +27,32 @@ CREATE TABLE IF NOT EXISTS jobs (
     inference_ms         INTEGER,
     postprocessing_ms    INTEGER
 );
+
+CREATE TABLE IF NOT EXISTS users (
+    id                   TEXT PRIMARY KEY,
+    email                TEXT UNIQUE NOT NULL,
+    hashed_password      TEXT NOT NULL,
+    credits_remaining    INTEGER NOT NULL DEFAULT 10,
+    last_credit_refresh  TEXT NOT NULL,
+    created_at           TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS garments (
+    id                   TEXT PRIMARY KEY,
+    image_path           TEXT NOT NULL,
+    category             TEXT NOT NULL,
+    display_name         TEXT NOT NULL,
+    source_credit        TEXT
+);
+
+CREATE TABLE IF NOT EXISTS moodboards (
+    id                   TEXT PRIMARY KEY,
+    user_id              TEXT NOT NULL,
+    title                TEXT NOT NULL DEFAULT 'Untitled',
+    canvas_state         TEXT,
+    created_at           TEXT NOT NULL,
+    updated_at           TEXT NOT NULL
+);
 """
 
 
@@ -46,12 +72,19 @@ def get_connection() -> sqlite3.Connection:
 
 
 def init_db() -> None:
-    """Create the jobs table if it does not already exist.
+    """Create all tables if they do not already exist.
 
-    Safe to call multiple times — uses CREATE TABLE IF NOT EXISTS.
-    Called during FastAPI lifespan startup.
+    Also adds a user_id column to the jobs table for existing
+    databases. The ALTER TABLE is wrapped in try/except for
+    idempotency — it silently passes if the column already exists.
+
+    Safe to call multiple times. Called during FastAPI lifespan startup.
     """
     conn = get_connection()
-    conn.execute(SCHEMA)
-    conn.commit()
+    conn.executescript(SCHEMA)
+    try:
+        conn.execute("ALTER TABLE jobs ADD COLUMN user_id TEXT")
+        conn.commit()
+    except sqlite3.OperationalError:
+        pass  # column already exists
     conn.close()
