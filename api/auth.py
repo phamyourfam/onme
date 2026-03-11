@@ -1,0 +1,135 @@
+"""Authentication utilities: password hashing, JWT tokens, and credits."""
+
+from datetime import datetime, timedelta, timezone
+
+from fastapi import Depends, HTTPException
+from fastapi.security import OAuth2PasswordBearer
+from jose import JWTError, jwt
+from passlib.context import CryptContext
+
+from api.config import settings
+from api.repositories.user_repo import get_user_by_id, update_user_credits
+
+_pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
+_oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+
+_ALGORITHM = "HS256"
+_TOKEN_EXPIRE_HOURS = 24
+_DAILY_CREDITS = 10
+
+
+def hash_password(password: str) -> str:
+    """Hash a plaintext password using bcrypt.
+
+    Args:
+        password: The plaintext password to hash.
+
+    Returns:
+        The bcrypt hash string.
+    """
+    return _pwd_ctx.hash(password)
+
+
+def verify_password(plain: str, hashed: str) -> bool:
+    """Verify a plaintext password against a bcrypt hash.
+
+    Args:
+        plain: The plaintext password.
+        hashed: The bcrypt hash to verify against.
+
+    Returns:
+        True if the password matches, False otherwise.
+    """
+    return _pwd_ctx.verify(plain, hashed)
+
+
+def create_access_token(user_id: str) -> str:
+    """Create a signed JWT access token.
+
+    Args:
+        user_id: The user ID to embed as the token subject.
+
+    Returns:
+        An encoded JWT string valid for 24 hours.
+    """
+    expire = datetime.now(timezone.utc) + timedelta(
+        hours=_TOKEN_EXPIRE_HOURS
+    )
+    payload = {"sub": user_id, "exp": expire}
+    return jwt.encode(payload, settings.JWT_SECRET, algorithm=_ALGORITHM)
+
+
+def get_current_user(
+    token: str = Depends(_oauth2_scheme),
+) -> str:
+    """Decode a JWT token and return the user ID.
+
+    Intended for use as a FastAPI dependency.
+
+    Args:
+        token: The Bearer token from the Authorization header.
+
+    Returns:
+        The user ID extracted from the token subject.
+
+    Raises:
+        HTTPException: 401 if the token is invalid or expired.
+    """
+    try:
+        payload = jwt.decode(
+            token, settings.JWT_SECRET, algorithms=[_ALGORITHM]
+        )
+        user_id: str | None = payload.get("sub")
+        if user_id is None:
+            raise HTTPException(
+                status_code=401, detail="Invalid token"
+            )
+        return user_id
+    except JWTError:
+        raise HTTPException(
+            status_code=401, detail="Invalid token"
+        )
+
+
+def check_and_refresh_credits(user_id: str) -> int:
+    """Check credit balance with lazy daily refresh.
+
+    If the last refresh was before today (UTC), credits reset to 10.
+    Then, if credits are zero, raise 429. Otherwise decrement by one
+    and return the remaining balance.
+
+    Args:
+        user_id: The user whose credits to check.
+
+    Returns:
+        The number of credits remaining after decrement.
+
+    Raises:
+        HTTPException: 429 if the user has zero credits today.
+        HTTPException: 404 if the user does not exist.
+    """
+    user = get_user_by_id(user_id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    now = datetime.now(timezone.utc)
+    today_str = now.date().isoformat()
+    last_refresh_date = datetime.fromisoformat(
+        user.last_credit_refresh
+    ).date().isoformat()
+
+    credits = user.credits_remaining
+
+    if last_refresh_date < today_str:
+        credits = _DAILY_CREDITS
+        update_user_credits(user_id, credits, now.isoformat())
+
+    if credits <= 0:
+        raise HTTPException(
+            status_code=429,
+            detail="No credits remaining today",
+        )
+
+    credits -= 1
+    update_user_credits(user_id, credits, now.isoformat())
+    return credits
