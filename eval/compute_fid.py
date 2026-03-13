@@ -1,9 +1,4 @@
-"""FID (Fréchet Inception Distance) computation for virtual try-on evaluation.
-
-Measures how realistic the distribution of generated images is compared to a
-reference set of real images.  Used as a distributional metric alongside the
-per-pair metrics in ``compute_metrics.py``.
-"""
+"""FID computation for offline virtual try-on evaluation."""
 
 from __future__ import annotations
 
@@ -14,19 +9,18 @@ import torch_fidelity
 
 
 def compute_fid(generated_dir: str, real_dir: str) -> float:
-    """Compute the Fréchet Inception Distance between two image directories.
+    """Compute Fréchet Inception Distance between two image directories.
 
-    FID measures how similar the distribution of generated images is to a
-    distribution of real images by comparing statistics of Inception-v3
-    features.  **Lower scores indicate that the generated images are more
-    realistic and diverse**, matching the real distribution more closely.
+    FID compares the feature distribution of generated images against a real
+    reference distribution. Lower scores are better and indicate that the
+    generated set is closer to the real set in realism and diversity.
 
     Args:
-        generated_dir: Path to the directory of generated images.
-        real_dir: Path to the directory of real / ground truth images.
+        generated_dir: Path to the directory containing generated images.
+        real_dir: Path to the directory containing real reference images.
 
     Returns:
-        The FID score as a Python float (lower is better).
+        The FID score as a Python float.
     """
     use_cuda = torch.cuda.is_available()
 
@@ -40,8 +34,8 @@ def compute_fid(generated_dir: str, real_dir: str) -> float:
     return float(metrics["frechet_inception_distance"])
 
 
-def _main() -> None:
-    """Parse arguments and compute FID."""
+def main() -> None:
+    """Parse command-line arguments and print an FID score."""
     parser = argparse.ArgumentParser(
         description="Compute Fréchet Inception Distance (FID) between two "
         "directories of images."
@@ -63,4 +57,4 @@ def _main() -> None:
 
 
 if __name__ == "__main__":
-    _main()
+    main()
