@@ -1,4 +1,13 @@
-/** Mirrors the backend JobResponse schema. */
+/* ── API Contract Types ─────────────────────────────────────────── */
+
+/** Authenticated user profile. */
+export interface AuthUser {
+	id: string;
+	email: string;
+	credits_remaining: number;
+}
+
+/** Virtual try-on job status (mirrors backend JobResponse). */
 export interface JobStatus {
 	id: string;
 	status:
@@ -22,16 +31,32 @@ export interface JobStatus {
 	} | null;
 }
 
-/** Data stored in each pipeline visualisation node. */
-export interface PipelineNodeData extends Record<string, unknown> {
-	label: string;
-	stage: string;
-	imageUrl: string | null;
-	status: 'idle' | 'processing' | 'complete' | 'failed';
-	elapsedMs: number | null;
+/** A garment returned by the catalog API. */
+export interface GarmentResponse {
+	id: string;
+	image_url: string;
+	category: string;
+	display_name: string;
+	source_credit: string | null;
 }
 
-/** Pre-computed evaluation metrics loaded from metrics.json. */
+/** Moodboard list item (summary). */
+export interface MoodboardSummary {
+	id: string;
+	title: string;
+	updated_at: string;
+}
+
+/** Full moodboard detail with canvas state. */
+export interface MoodboardDetail {
+	id: string;
+	title: string;
+	canvas_state: string | null;
+	created_at: string;
+	updated_at: string;
+}
+
+/** Evaluation metrics data structure. */
 export interface MetricsData {
 	models: {
 		name: string;
@@ -54,4 +79,17 @@ export interface MetricsData {
 		};
 	};
 	last_updated: string | null;
+}
+
+/** Response from POST /auth/login. */
+export interface LoginResponse {
+	access_token: string;
+	token_type: string;
+}
+
+/** Response from POST /auth/register. */
+export interface RegisterResponse {
+	id: string;
+	email: string;
+	token: string;
 }
