@@ -22,10 +22,26 @@
 		}
 	],
 	"ablation": {
-		"with_clahe": { "ssim": null, "lpips": null, "psnr": null },
-		"without_clahe": { "ssim": null, "lpips": null, "psnr": null },
-		"with_colour_correction": { "ssim": null, "lpips": null, "psnr": null },
-		"without_colour_correction": { "ssim": null, "lpips": null, "psnr": null }
+		"with_clahe": {
+			"ssim": null,
+			"lpips": null,
+			"psnr": null
+		},
+		"without_clahe": {
+			"ssim": null,
+			"lpips": null,
+			"psnr": null
+		},
+		"with_colour_correction": {
+			"ssim": null,
+			"lpips": null,
+			"psnr": null
+		},
+		"without_colour_correction": {
+			"ssim": null,
+			"lpips": null,
+			"psnr": null
+		}
 	},
 	"last_updated": null
 }
