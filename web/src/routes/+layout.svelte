@@ -1,7 +1,7 @@
 <script lang="ts">
 	import '../app.css';
 	import { onMount } from 'svelte';
-	import { initAuth, isInitialised } from '$lib/stores/auth.svelte';
+	import { initAuth, getIsInitialised } from '$lib/stores/auth.svelte';
 
 	let { children } = $props();
 
@@ -15,7 +15,7 @@
 	<meta name="description" content="OnMe is an AI-powered virtual fitting room. Try on garments using state-of-the-art diffusion models." />
 </svelte:head>
 
-{#if !isInitialised}
+{#if !getIsInitialised()}
 	<!-- Loading spinner while auth state initialises -->
 	<div class="fixed inset-0 flex items-center justify-center bg-surface-primary">
 		<div class="flex flex-col items-center gap-4">
