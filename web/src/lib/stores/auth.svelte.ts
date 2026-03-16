@@ -1,6 +1,6 @@
 /* ── Auth Store (Svelte 5 Runes) ────────────────────────────────── */
 
-import { login, register, ApiError } from '$lib/api';
+import { login, register } from '$lib/api';
 import type { AuthUser } from '$lib/types';
 
 const TOKEN_KEY = 'onme_token';
@@ -12,11 +12,19 @@ let token = $state<string | null>(null);
 let user = $state<AuthUser | null>(null);
 let initialised = $state(false);
 
-/* ── Derived ────────────────────────────────────────────────────── */
+/* ── Exported getters (cannot export $derived from modules) ────── */
 
-export const isAuthenticated = $derived(!!token);
-export const isInitialised = $derived(initialised);
-export const authUser = $derived(user);
+export function getIsAuthenticated(): boolean {
+    return !!token;
+}
+
+export function getIsInitialised(): boolean {
+    return initialised;
+}
+
+export function getAuthUser(): AuthUser | null {
+    return user;
+}
 
 /* ── Init — restore session from localStorage ───────────────────── */
 
