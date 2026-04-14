@@ -1,5 +1,7 @@
 """Authentication utilities: password hashing, JWT tokens, and credits."""
 
+from __future__ import annotations
+
 from datetime import datetime, timedelta, timezone
 
 from fastapi import Depends, HTTPException
@@ -11,7 +13,7 @@ from api.config import settings
 from api.repositories.user_repo import get_user_by_id, update_user_credits
 
 _pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
-_oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+_oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
 _ALGORITHM = "HS256"
 _TOKEN_EXPIRE_HOURS = 24
@@ -56,10 +58,14 @@ def create_access_token(user_id: str) -> str:
         hours=_TOKEN_EXPIRE_HOURS
     )
     payload = {"sub": user_id, "exp": expire}
-    return jwt.encode(payload, settings.JWT_SECRET, algorithm=_ALGORITHM)
+    return jwt.encode(
+        payload,
+        settings.jwt_secret.get_secret_value(),
+        algorithm=_ALGORITHM,
+    )
 
 
-def get_current_user(
+async def get_current_user(
     token: str = Depends(_oauth2_scheme),
 ) -> str:
     """Decode a JWT token and return the user ID.
@@ -77,13 +83,18 @@ def get_current_user(
     """
     try:
         payload = jwt.decode(
-            token, settings.JWT_SECRET, algorithms=[_ALGORITHM]
+            token,
+            settings.jwt_secret.get_secret_value(),
+            algorithms=[_ALGORITHM],
         )
         user_id: str | None = payload.get("sub")
         if user_id is None:
             raise HTTPException(
                 status_code=401, detail="Invalid token"
             )
+        user = await get_user_by_id(user_id)
+        if user is None:
+            raise HTTPException(status_code=401, detail="Invalid token")
         return user_id
     except JWTError:
         raise HTTPException(
@@ -91,7 +102,7 @@ def get_current_user(
         )
 
 
-def check_and_refresh_credits(user_id: str) -> int:
+async def check_and_refresh_credits(user_id: str) -> int:
     """Check credit balance with lazy daily refresh.
 
     If the last refresh was before today (UTC), credits reset to 10.
@@ -108,7 +119,7 @@ def check_and_refresh_credits(user_id: str) -> int:
         HTTPException: 429 if the user has zero credits today.
         HTTPException: 404 if the user does not exist.
     """
-    user = get_user_by_id(user_id)
+    user = await get_user_by_id(user_id)
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
 
@@ -122,7 +133,7 @@ def check_and_refresh_credits(user_id: str) -> int:
 
     if last_refresh_date < today_str:
         credits = _DAILY_CREDITS
-        update_user_credits(user_id, credits, now.isoformat())
+        await update_user_credits(user_id, credits, now.isoformat())
 
     if credits <= 0:
         raise HTTPException(
@@ -131,5 +142,5 @@ def check_and_refresh_credits(user_id: str) -> int:
         )
 
     credits -= 1
-    update_user_credits(user_id, credits, now.isoformat())
+    await update_user_credits(user_id, credits, now.isoformat())
     return credits

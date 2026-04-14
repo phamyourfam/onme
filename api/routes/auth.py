@@ -23,7 +23,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @router.post("/register", response_model=RegisterResponse)
-def register(body: RegisterRequest) -> RegisterResponse:
+async def register(body: RegisterRequest) -> RegisterResponse:
     """Register a new user account.
 
     Args:
@@ -35,7 +35,7 @@ def register(body: RegisterRequest) -> RegisterResponse:
     Raises:
         HTTPException: 409 if the email is already registered.
     """
-    existing = get_user_by_email(body.email)
+    existing = await get_user_by_email(body.email)
     if existing is not None:
         raise HTTPException(
             status_code=409, detail="Email already registered"
@@ -50,7 +50,7 @@ def register(body: RegisterRequest) -> RegisterResponse:
         last_credit_refresh=now,
         created_at=now,
     )
-    create_user(user)
+    await create_user(user)
     token = create_access_token(user.id)
 
     return RegisterResponse(
@@ -59,7 +59,7 @@ def register(body: RegisterRequest) -> RegisterResponse:
 
 
 @router.post("/login", response_model=LoginResponse)
-def login(
+async def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
 ) -> LoginResponse:
     """Authenticate and return an access token.
@@ -75,7 +75,7 @@ def login(
     Raises:
         HTTPException: 401 if credentials are invalid.
     """
-    user = get_user_by_email(form_data.username)
+    user = await get_user_by_email(form_data.username)
     if user is None or not verify_password(
         form_data.password, user.hashed_password
     ):

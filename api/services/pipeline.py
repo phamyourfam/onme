@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import os
 import time
 from datetime import datetime, timezone
 
@@ -17,7 +16,7 @@ from api.services.preprocessing import run_preprocessing
 _repo = JobRepository()
 
 
-def execute_tryon_job(job_id: str) -> None:
+async def execute_tryon_job(job_id: str) -> None:
     """Execute the full try-on pipeline for a given job.
 
     This function is designed to run inside a ``BackgroundTasks`` context.
@@ -28,7 +27,7 @@ def execute_tryon_job(job_id: str) -> None:
     Args:
         job_id: The hex UUID of the job to process.
     """
-    job = _repo.get_job(job_id)
+    job = await _repo.get_job(job_id)
     if job is None:
         return
 
@@ -37,7 +36,9 @@ def execute_tryon_job(job_id: str) -> None:
 
     try:
         # ── Stage 1: Preprocessing ──────────────────────────────────
-        _repo.update_job(job_id, status="preprocessing", current_stage="preprocessing")
+        await _repo.update_job(
+            job_id, status="preprocessing", current_stage="preprocessing"
+        )
 
         t0 = time.monotonic()
         result = run_preprocessing(job.person_image_path, job.garment_image_path)
@@ -48,16 +49,16 @@ def execute_tryon_job(job_id: str) -> None:
         intermediates["person_clahe"] = result["person_processed"]
         intermediates["garment_resized"] = result["garment_processed"]
 
-        _repo.update_job(
+        await _repo.update_job(
             job_id,
             intermediate_outputs=json.dumps(intermediates),
         )
 
         # ── Stage 2: Inference ──────────────────────────────────────
-        _repo.update_job(job_id, status="inferring", current_stage="inferring")
+        await _repo.update_job(job_id, status="inferring", current_stage="inferring")
 
         t0 = time.monotonic()
-        raw_output_path = os.path.join(settings.RESULTS_DIR, f"{job_id}_raw.jpg")
+        raw_output_path = str(settings.results_dir / f"{job_id}_raw.jpg")
         run_and_save_sync(
             model_name=job.model_name,
             person_image_path=result["person_processed"],
@@ -67,26 +68,30 @@ def execute_tryon_job(job_id: str) -> None:
         timing["inference_ms"] = int((time.monotonic() - t0) * 1000)
 
         intermediates["inference_raw"] = raw_output_path
-        _repo.update_job(
+        await _repo.update_job(
             job_id,
             intermediate_outputs=json.dumps(intermediates),
         )
 
         # ── Stage 3: Postprocessing ────────────────────────────────
-        _repo.update_job(job_id, status="postprocessing", current_stage="postprocessing")
+        await _repo.update_job(
+            job_id,
+            status="postprocessing",
+            current_stage="postprocessing",
+        )
 
         t0 = time.monotonic()
         final_output_path = run_postprocessing(raw_output_path, result["garment_processed"])
         timing["postprocessing_ms"] = int((time.monotonic() - t0) * 1000)
 
         intermediates["colour_corrected"] = final_output_path
-        _repo.update_job(
+        await _repo.update_job(
             job_id,
             intermediate_outputs=json.dumps(intermediates),
         )
 
         # ── Completion ──────────────────────────────────────────────
-        _repo.update_job(
+        await _repo.update_job(
             job_id,
             status="complete",
             current_stage=None,
@@ -98,7 +103,7 @@ def execute_tryon_job(job_id: str) -> None:
         )
 
     except Exception as e:
-        _repo.update_job(
+        await _repo.update_job(
             job_id,
             status="failed",
             error_message=str(e),
