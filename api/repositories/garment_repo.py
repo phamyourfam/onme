@@ -1,51 +1,37 @@
-"""Data-access layer for Garment persistence using raw SQLite."""
+"""Garment persistence backed by PostgreSQL via SQLAlchemy."""
 
-from api.database import get_connection
+from __future__ import annotations
+
+from sqlalchemy import select
+
+from api.database import AsyncSessionFactory
+from api.db.models import GarmentORM
 from api.models import Garment
 
 
-def list_garments(category: str | None = None) -> list[Garment]:
-    """List all garments, optionally filtered by category.
+def _to_garment(model: GarmentORM) -> Garment:
+    return Garment(
+        id=model.id,
+        image_path=model.image_path,
+        category=model.category,
+        display_name=model.display_name,
+        source_credit=model.source_credit,
+    )
 
-    Args:
-        category: If provided, only return garments in this category.
 
-    Returns:
-        A list of Garment dataclass instances.
-    """
-    conn = get_connection()
-    try:
+async def list_garments(category: str | None = None) -> list[Garment]:
+    async with AsyncSessionFactory() as session:
+        statement = select(GarmentORM)
         if category:
-            rows = conn.execute(
-                "SELECT * FROM garments WHERE category = ?",
-                (category,),
-            ).fetchall()
-        else:
-            rows = conn.execute("SELECT * FROM garments").fetchall()
-    finally:
-        conn.close()
-
-    return [Garment(**dict(row)) for row in rows]
+            statement = statement.where(GarmentORM.category == category.lower())
+        result = await session.execute(statement.order_by(GarmentORM.display_name))
+        models = result.scalars().all()
+    return [_to_garment(model) for model in models]
 
 
-def get_garment(garment_id: str) -> Garment | None:
-    """Fetch a single garment by its ID.
-
-    Args:
-        garment_id: The unique garment identifier.
-
-    Returns:
-        A Garment instance if found, None otherwise.
-    """
-    conn = get_connection()
-    try:
-        row = conn.execute(
-            "SELECT * FROM garments WHERE id = ?",
-            (garment_id,),
-        ).fetchone()
-    finally:
-        conn.close()
-
-    if row is None:
+async def get_garment(garment_id: str) -> Garment | None:
+    async with AsyncSessionFactory() as session:
+        model = await session.get(GarmentORM, garment_id)
+    if model is None:
         return None
-    return Garment(**dict(row))
+    return _to_garment(model)

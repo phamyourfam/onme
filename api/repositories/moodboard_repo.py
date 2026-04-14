@@ -1,155 +1,120 @@
-"""Data-access layer for Moodboard persistence using raw SQLite."""
+"""Moodboard persistence backed by PostgreSQL via SQLAlchemy."""
 
-from api.database import get_connection
+from __future__ import annotations
+
+import json
+import uuid
+from datetime import datetime, timezone
+
+from sqlalchemy import delete, select, update
+
+from api.database import AsyncSessionFactory
+from api.db.models import MoodboardORM
 from api.models import Moodboard
 
 
-def create_moodboard(moodboard: Moodboard) -> Moodboard:
-    """Insert a new moodboard row into the database.
+def _as_uuid(value: str) -> uuid.UUID:
+    return uuid.UUID(value)
 
-    Args:
-        moodboard: The Moodboard dataclass instance to persist.
 
-    Returns:
-        The same Moodboard instance after successful insertion.
-    """
-    conn = get_connection()
-    try:
-        with conn:
-            conn.execute(
-                """
-                INSERT INTO moodboards (
-                    id, user_id, title, canvas_state,
-                    created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    moodboard.id,
-                    moodboard.user_id,
-                    moodboard.title,
-                    moodboard.canvas_state,
-                    moodboard.created_at,
-                    moodboard.updated_at,
-                ),
-            )
-    finally:
-        conn.close()
+def _to_datetime(value: str) -> datetime:
+    parsed = datetime.fromisoformat(value)
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=timezone.utc)
+    return parsed
+
+
+def _decode_canvas(canvas_state: str | None) -> dict[str, object]:
+    if not canvas_state:
+        return {}
+    return json.loads(canvas_state)
+
+
+def _encode_canvas(canvas_state: dict[str, object] | None) -> str | None:
+    if canvas_state is None:
+        return None
+    return json.dumps(canvas_state)
+
+
+def _to_moodboard(model: MoodboardORM) -> Moodboard:
+    return Moodboard(
+        id=str(model.id),
+        user_id=str(model.user_id),
+        title=model.title,
+        canvas_state=_encode_canvas(model.canvas_state),
+        created_at=model.created_at.isoformat(),
+        updated_at=model.updated_at.isoformat(),
+    )
+
+
+async def create_moodboard(moodboard: Moodboard) -> Moodboard:
+    async with AsyncSessionFactory() as session:
+        model = MoodboardORM(
+            id=_as_uuid(moodboard.id),
+            user_id=_as_uuid(moodboard.user_id),
+            title=moodboard.title,
+            canvas_state=_decode_canvas(moodboard.canvas_state),
+            created_at=_to_datetime(moodboard.created_at),
+            updated_at=_to_datetime(moodboard.updated_at),
+        )
+        session.add(model)
+        await session.commit()
     return moodboard
 
 
-def get_moodboard(moodboard_id: str) -> Moodboard | None:
-    """Fetch a single moodboard by its ID.
-
-    Args:
-        moodboard_id: The unique moodboard identifier.
-
-    Returns:
-        A Moodboard instance if found, None otherwise.
-    """
-    conn = get_connection()
-    try:
-        row = conn.execute(
-            "SELECT * FROM moodboards WHERE id = ?",
-            (moodboard_id,),
-        ).fetchone()
-    finally:
-        conn.close()
-
-    if row is None:
+async def get_moodboard(moodboard_id: str) -> Moodboard | None:
+    async with AsyncSessionFactory() as session:
+        model = await session.get(MoodboardORM, _as_uuid(moodboard_id))
+    if model is None:
         return None
-    return Moodboard(**dict(row))
+    return _to_moodboard(model)
 
 
-def list_user_moodboards(user_id: str) -> list[Moodboard]:
-    """List all moodboards owned by a specific user.
-
-    Args:
-        user_id: The unique user identifier.
-
-    Returns:
-        A list of Moodboard dataclass instances.
-    """
-    conn = get_connection()
-    try:
-        rows = conn.execute(
-            "SELECT * FROM moodboards WHERE user_id = ? "
-            "ORDER BY updated_at DESC",
-            (user_id,),
-        ).fetchall()
-    finally:
-        conn.close()
-
-    return [Moodboard(**dict(row)) for row in rows]
+async def list_user_moodboards(user_id: str) -> list[Moodboard]:
+    async with AsyncSessionFactory() as session:
+        result = await session.execute(
+            select(MoodboardORM)
+            .where(MoodboardORM.user_id == _as_uuid(user_id))
+            .order_by(MoodboardORM.updated_at.desc())
+        )
+        models = result.scalars().all()
+    return [_to_moodboard(model) for model in models]
 
 
-def update_moodboard_canvas(
+async def update_moodboard_canvas(
     moodboard_id: str, canvas_state: str, updated_at: str
 ) -> None:
-    """Update the canvas state and timestamp for a moodboard.
-
-    Args:
-        moodboard_id: The unique moodboard identifier.
-        canvas_state: The new serialised xyflow JSON string.
-        updated_at: ISO 8601 UTC timestamp of the update.
-    """
-    conn = get_connection()
-    try:
-        with conn:
-            conn.execute(
-                """
-                UPDATE moodboards
-                SET canvas_state = ?, updated_at = ?
-                WHERE id = ?
-                """,
-                (canvas_state, updated_at, moodboard_id),
+    async with AsyncSessionFactory() as session:
+        await session.execute(
+            update(MoodboardORM)
+            .where(MoodboardORM.id == _as_uuid(moodboard_id))
+            .values(
+                canvas_state=_decode_canvas(canvas_state),
+                updated_at=_to_datetime(updated_at),
             )
-    finally:
-        conn.close()
+        )
+        await session.commit()
 
 
-def update_moodboard_title(
+async def update_moodboard_title(
     moodboard_id: str, title: str, updated_at: str
 ) -> None:
-    """Update the title and timestamp for a moodboard.
+    async with AsyncSessionFactory() as session:
+        await session.execute(
+            update(MoodboardORM)
+            .where(MoodboardORM.id == _as_uuid(moodboard_id))
+            .values(title=title, updated_at=_to_datetime(updated_at))
+        )
+        await session.commit()
 
-    Args:
-        moodboard_id: The unique moodboard identifier.
-        title: The new moodboard title.
-        updated_at: ISO 8601 UTC timestamp of the update.
-    """
-    conn = get_connection()
-    try:
-        with conn:
-            conn.execute(
-                """
-                UPDATE moodboards
-                SET title = ?, updated_at = ?
-                WHERE id = ?
-                """,
-                (title, updated_at, moodboard_id),
+
+async def delete_moodboard(moodboard_id: str, user_id: str) -> bool:
+    async with AsyncSessionFactory() as session:
+        result = await session.execute(
+            delete(MoodboardORM).where(
+                MoodboardORM.id == _as_uuid(moodboard_id),
+                MoodboardORM.user_id == _as_uuid(user_id),
             )
-    finally:
-        conn.close()
-
-
-def delete_moodboard(moodboard_id: str, user_id: str) -> bool:
-    """Delete a moodboard if it belongs to the specified user.
-
-    Args:
-        moodboard_id: The unique moodboard identifier.
-        user_id: The user who must own the moodboard.
-
-    Returns:
-        True if a row was deleted, False otherwise.
-    """
-    conn = get_connection()
-    try:
-        with conn:
-            cursor = conn.execute(
-                "DELETE FROM moodboards WHERE id = ? AND user_id = ?",
-                (moodboard_id, user_id),
-            )
-    finally:
-        conn.close()
-
-    return cursor.rowcount > 0
+        )
+        await session.commit()
+    return result.rowcount > 0
