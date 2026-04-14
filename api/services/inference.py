@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
-import replicate
 import httpx
+import replicate
+
+from api.config import settings
 
 # TODO: Verify version hashes at https://replicate.com before running inference.
 MODEL_REGISTRY: dict[str, str] = {
@@ -47,10 +49,13 @@ def run_inference_sync(
 
     model_id = MODEL_REGISTRY[model_name]
     keys = MODEL_INPUT_KEYS[model_name]
+    client = replicate.Client(
+        api_token=settings.replicate_api_key.get_secret_value()
+    )
 
     with open(person_image_path, "rb") as person_file, \
          open(garment_image_path, "rb") as garment_file:
-        output = replicate.run(
+        output = client.run(
             model_id,
             input={
                 keys["person"]: person_file,

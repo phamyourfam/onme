@@ -12,7 +12,7 @@ router = APIRouter(prefix="/garments", tags=["garments"])
 
 
 @router.get("/", response_model=list[GarmentResponse])
-def list_garments_route(
+async def list_garments_route(
     category: str | None = None,
 ) -> list[GarmentResponse]:
     """List all garments, optionally filtered by category.
@@ -23,7 +23,7 @@ def list_garments_route(
     Returns:
         A list of GarmentResponse objects.
     """
-    garments = list_garments(category)
+    garments = await list_garments(category)
     return [
         GarmentResponse(
             id=g.id,
@@ -37,7 +37,7 @@ def list_garments_route(
 
 
 @router.get("/{garment_id}", response_model=GarmentResponse)
-def get_garment_route(garment_id: str) -> GarmentResponse:
+async def get_garment_route(garment_id: str) -> GarmentResponse:
     """Get a single garment by ID.
 
     Args:
@@ -49,7 +49,7 @@ def get_garment_route(garment_id: str) -> GarmentResponse:
     Raises:
         HTTPException: 404 if the garment is not found.
     """
-    g = get_garment(garment_id)
+    g = await get_garment(garment_id)
     if g is None:
         raise HTTPException(status_code=404, detail="Garment not found")
     return GarmentResponse(

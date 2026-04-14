@@ -3,7 +3,6 @@ Virtual try-on upload and job status routes.
 """
 
 import json
-import os
 import uuid
 from datetime import datetime, timezone
 
@@ -54,19 +53,19 @@ async def create_tryon(
                 detail=f"Invalid content type for {label}: '{upload.content_type}'. Must be an image (JPEG, PNG, or WebP).",
             )
 
-    check_and_refresh_credits(user_id)
+    await check_and_refresh_credits(user_id)
 
     job_id = uuid.uuid4().hex
 
     person_filename = f"{job_id}_person_{person.filename}"
     garment_filename = f"{job_id}_garment_{garment.filename}"
 
-    person_path = os.path.join(settings.UPLOAD_DIR, person_filename)
-    garment_path = os.path.join(settings.UPLOAD_DIR, garment_filename)
+    person_path = settings.uploads_dir / person_filename
+    garment_path = settings.uploads_dir / garment_filename
 
-    with open(person_path, "wb") as f:
+    with person_path.open("wb") as f:
         f.write(await person.read())
-    with open(garment_path, "wb") as f:
+    with garment_path.open("wb") as f:
         f.write(await garment.read())
 
     now = datetime.now(timezone.utc).isoformat()
@@ -75,12 +74,12 @@ async def create_tryon(
         id=job_id,
         status="pending",
         model_name=model_name,
-        person_image_path=person_path,
-        garment_image_path=garment_path,
+        person_image_path=str(person_path),
+        garment_image_path=str(garment_path),
         created_at=now,
         user_id=user_id,
     )
-    _repo.create_job(job)
+    await _repo.create_job(job)
     background_tasks.add_task(execute_tryon_job, job.id)
 
     return JobResponse(
@@ -109,7 +108,7 @@ async def get_tryon_history(
     Returns:
         A list of JobResponse objects.
     """
-    jobs = _repo.get_jobs_by_user(user_id)
+    jobs = await _repo.get_jobs_by_user(user_id)
     results = []
     for job in jobs:
         intermediates = (
@@ -142,7 +141,7 @@ async def get_tryon_history(
 @router.get("/tryon/{job_id}", response_model=JobResponse)
 async def get_tryon(job_id: str) -> JobResponse:
     """Return the current state of a try-on job."""
-    job = _repo.get_job(job_id)
+    job = await _repo.get_job(job_id)
     if job is None:
         raise HTTPException(status_code=404, detail="Job not found")
 

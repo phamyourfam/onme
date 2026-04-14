@@ -33,7 +33,7 @@ class _CreateBody(MoodboardTitleUpdate):
 
 
 @router.post("/", response_model=MoodboardDetail)
-def create_moodboard(
+async def create_moodboard(
     body: _CreateBody | None = None,
     user_id: str = Depends(get_current_user),
 ) -> MoodboardDetail:
@@ -55,7 +55,7 @@ def create_moodboard(
         created_at=now,
         updated_at=now,
     )
-    repo_create(moodboard)
+    await repo_create(moodboard)
     return MoodboardDetail(
         id=moodboard.id,
         title=moodboard.title,
@@ -66,7 +66,7 @@ def create_moodboard(
 
 
 @router.get("/", response_model=list[MoodboardSummary])
-def list_moodboards(
+async def list_moodboards(
     user_id: str = Depends(get_current_user),
 ) -> list[MoodboardSummary]:
     """List all moodboards for the authenticated user.
@@ -80,7 +80,7 @@ def list_moodboards(
     Returns:
         A list of MoodboardSummary objects.
     """
-    moodboards = repo_list(user_id)
+    moodboards = await repo_list(user_id)
     return [
         MoodboardSummary(
             id=m.id,
@@ -92,7 +92,7 @@ def list_moodboards(
 
 
 @router.get("/{moodboard_id}", response_model=MoodboardDetail)
-def get_moodboard(
+async def get_moodboard(
     moodboard_id: str,
     user_id: str = Depends(get_current_user),
 ) -> MoodboardDetail:
@@ -108,7 +108,7 @@ def get_moodboard(
     Raises:
         HTTPException: 404 if not found, 403 if not owned.
     """
-    mb = repo_get(moodboard_id)
+    mb = await repo_get(moodboard_id)
     if mb is None:
         raise HTTPException(status_code=404, detail="Moodboard not found")
     if mb.user_id != user_id:
@@ -126,7 +126,7 @@ def get_moodboard(
 
 
 @router.put("/{moodboard_id}/canvas")
-def update_canvas(
+async def update_canvas(
     moodboard_id: str,
     body: MoodboardCanvasUpdate,
     user_id: str = Depends(get_current_user),
@@ -144,7 +144,7 @@ def update_canvas(
     Raises:
         HTTPException: 404 if not found, 403 if not owned.
     """
-    mb = repo_get(moodboard_id)
+    mb = await repo_get(moodboard_id)
     if mb is None:
         raise HTTPException(status_code=404, detail="Moodboard not found")
     if mb.user_id != user_id:
@@ -153,12 +153,12 @@ def update_canvas(
             detail="Not authorised to update this moodboard",
         )
     now = datetime.now(timezone.utc).isoformat()
-    repo_update_canvas(moodboard_id, body.canvas_state, now)
+    await repo_update_canvas(moodboard_id, body.canvas_state, now)
     return {"id": moodboard_id, "updated_at": now}
 
 
 @router.put("/{moodboard_id}/title")
-def update_title(
+async def update_title(
     moodboard_id: str,
     body: MoodboardTitleUpdate,
     user_id: str = Depends(get_current_user),
@@ -176,7 +176,7 @@ def update_title(
     Raises:
         HTTPException: 404 if not found, 403 if not owned.
     """
-    mb = repo_get(moodboard_id)
+    mb = await repo_get(moodboard_id)
     if mb is None:
         raise HTTPException(status_code=404, detail="Moodboard not found")
     if mb.user_id != user_id:
@@ -185,12 +185,12 @@ def update_title(
             detail="Not authorised to update this moodboard",
         )
     now = datetime.now(timezone.utc).isoformat()
-    repo_update_title(moodboard_id, body.title, now)
+    await repo_update_title(moodboard_id, body.title, now)
     return {"id": moodboard_id, "title": body.title, "updated_at": now}
 
 
 @router.delete("/{moodboard_id}", status_code=204)
-def delete_moodboard(
+async def delete_moodboard(
     moodboard_id: str,
     user_id: str = Depends(get_current_user),
 ) -> Response:
@@ -206,7 +206,7 @@ def delete_moodboard(
     Raises:
         HTTPException: 404 if not found or not owned.
     """
-    deleted = repo_delete(moodboard_id, user_id)
+    deleted = await repo_delete(moodboard_id, user_id)
     if not deleted:
         raise HTTPException(
             status_code=404, detail="Moodboard not found"
