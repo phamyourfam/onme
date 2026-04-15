@@ -1,6 +1,6 @@
 /* ── Auth Store (Svelte 5 Runes) ────────────────────────────────── */
 
-import { login, register } from '$lib/api';
+import { login, register, getMe } from '$lib/api';
 import type { AuthUser } from '$lib/types';
 
 const TOKEN_KEY = 'onme_token';
@@ -26,20 +26,25 @@ export function getAuthUser(): AuthUser | null {
     return user;
 }
 
-/* ── Init — restore session from localStorage ───────────────────── */
+/* ── Init — restore session from localStorage + hydrate via /me ── */
 
-export function initAuth(): void {
+export async function initAuth(): Promise<void> {
     try {
         const savedToken = localStorage.getItem(TOKEN_KEY);
-        const savedUser = localStorage.getItem(USER_KEY);
 
         if (savedToken) {
             token = savedToken;
-        }
-        if (savedUser) {
+
+            // Hydrate user profile from backend
             try {
-                user = JSON.parse(savedUser);
+                const me = await getMe();
+                user = me;
+                localStorage.setItem(USER_KEY, JSON.stringify(me));
             } catch {
+                // Token is stale or invalid — clear everything
+                token = null;
+                user = null;
+                localStorage.removeItem(TOKEN_KEY);
                 localStorage.removeItem(USER_KEY);
             }
         }
@@ -68,14 +73,21 @@ export async function loginAction(
     token = res.access_token;
     localStorage.setItem(TOKEN_KEY, res.access_token);
 
-    // Store basic user info from login (no /auth/me endpoint needed)
-    const userInfo: AuthUser = {
-        id: '',
-        email: email,
-        credits_remaining: 0
-    };
-    user = userInfo;
-    localStorage.setItem(USER_KEY, JSON.stringify(userInfo));
+    // Hydrate full user profile from /me
+    try {
+        const me = await getMe();
+        user = me;
+        localStorage.setItem(USER_KEY, JSON.stringify(me));
+    } catch {
+        // Fallback: store minimal user info
+        const userInfo: AuthUser = {
+            id: '',
+            email: email,
+            credits_remaining: 0
+        };
+        user = userInfo;
+        localStorage.setItem(USER_KEY, JSON.stringify(userInfo));
+    }
 }
 
 /* ── Register ───────────────────────────────────────────────────── */
@@ -92,7 +104,7 @@ export async function registerAction(
     const userInfo: AuthUser = {
         id: res.id,
         email: res.email,
-        credits_remaining: 0
+        credits_remaining: 10
     };
     user = userInfo;
     localStorage.setItem(USER_KEY, JSON.stringify(userInfo));
@@ -105,4 +117,18 @@ export function logoutAction(): void {
     user = null;
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
+}
+
+/* ── Refresh user data ──────────────────────────────────────────── */
+
+export async function refreshUser(): Promise<void> {
+    if (!token) return;
+
+    try {
+        const me = await getMe();
+        user = me;
+        localStorage.setItem(USER_KEY, JSON.stringify(me));
+    } catch {
+        // Silently fail — user data stays as-is
+    }
 }
