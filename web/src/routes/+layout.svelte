@@ -2,11 +2,12 @@
 	import '../app.css';
 	import { onMount } from 'svelte';
 	import { initAuth, getIsInitialised } from '$lib/stores/auth.svelte';
+	import Toast from '$lib/components/Toast.svelte';
 
 	let { children } = $props();
 
-	onMount(() => {
-		initAuth();
+	onMount(async () => {
+		await initAuth();
 	});
 </script>
 
@@ -26,3 +27,5 @@
 {:else}
 	{@render children()}
 {/if}
+
+<Toast />
