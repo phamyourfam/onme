@@ -11,9 +11,13 @@ from api.schemas import GarmentResponse
 router = APIRouter(prefix="/garments", tags=["garments"])
 
 
+from fastapi import APIRouter, Depends, HTTPException
+from api.auth import get_current_user
+
 @router.get("/", response_model=list[GarmentResponse])
 async def list_garments_route(
     category: str | None = None,
+    user_id: str = Depends(get_current_user),
 ) -> list[GarmentResponse]:
     """List all garments, optionally filtered by category.
 

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { getGarments } from '$lib/api';
+	import { getGarments, getImageUrl } from '$lib/api';
 	import type { GarmentResponse } from '$lib/types';
 	import { onMount } from 'svelte';
 
@@ -23,8 +23,8 @@
 		}
 	}
 
-	// Fetch initially and re-fetch when activeCategory changes
-	$effect(() => {
+	// Fetch initially when component mounts
+	onMount(() => {
 		loadGarments(activeCategory);
 	});
 
@@ -55,7 +55,7 @@
 		<div class="flex gap-2">
 			{#each categories as category}
 				<button
-					onclick={() => (activeCategory = category)}
+					onclick={() => { activeCategory = category; loadGarments(category); }}
 					class="whitespace-nowrap rounded-pill px-4 py-2 text-sm font-medium transition-colors
 					{activeCategory === category
 						? 'bg-white text-black'
@@ -95,7 +95,7 @@
 				<div class="group relative mb-3 break-inside-avoid cursor-pointer overflow-hidden rounded-2xl bg-surface-card">
 					<!-- Garment Image -->
 					<img
-						src={garment.image_url}
+						src={getImageUrl(garment.image_url)}
 						alt={garment.display_name}
 						class="w-full object-cover"
 						loading="lazy"
