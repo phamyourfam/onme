@@ -21,7 +21,7 @@ class Job:
     Attributes:
         id: Hex UUID uniquely identifying this job.
         status: Current pipeline stage or terminal state.
-        model_name: VTON model to use ('catvton' or 'ootdiffusion').
+        model_name: VTON model to use ('idm-vton' or 'ootdiffusion').
         person_image_path: Path to uploaded person photo on disk.
         garment_image_path: Path to uploaded garment photo on disk.
         result_image_path: Path to final output image, set on completion.

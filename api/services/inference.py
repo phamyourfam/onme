@@ -10,12 +10,12 @@ from api.config import settings
 
 # TODO: Verify version hashes at https://replicate.com before running inference.
 MODEL_REGISTRY: dict[str, str] = {
-    "catvton": "zhengchong/catvton:PUT_VERSION_HASH_HERE",
+    "idm-vton": "cuuupid/idm-vton:c871bb9b046607b680449ecbae55fd8c6d945e0a1948644bf2361b3d021d3ff4",
     "ootdiffusion": "PUT_OWNER/ootdiffusion:PUT_VERSION_HASH_HERE",
 }
 
 MODEL_INPUT_KEYS: dict[str, dict[str, str]] = {
-    "catvton": {"person": "image", "garment": "cloth"},
+    "idm-vton": {"person": "image", "garment": "garment"},
     "ootdiffusion": {"person": "model_image", "garment": "cloth_image"},
 }
 logger = logging.getLogger("onme.api.inference")
@@ -52,7 +52,7 @@ def run_inference_sync(
     is intended to run inside a background thread.
 
     Args:
-        model_name: Key into ``MODEL_REGISTRY`` (e.g. ``"catvton"``).
+        model_name: Key into ``MODEL_REGISTRY`` (e.g. ``"idm-vton"``).
         person_image_path: Local path to the person image file.
         garment_image_path: Local path to the garment image file.
         job_id: The try-on job identifier for observability, when available.

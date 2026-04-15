@@ -31,7 +31,7 @@ def _make_job(**overrides) -> Job:
     defaults = {
         "id": "job-1",
         "status": "pending",
-        "model_name": "catvton",
+        "model_name": "idm-vton",
         "person_image_path": "uploads/person.jpg",
         "garment_image_path": "uploads/garment.jpg",
     }
@@ -46,7 +46,7 @@ def test_create_and_retrieve(repo):
     assert fetched is not None
     assert fetched.id == "job-1"
     assert fetched.status == "pending"
-    assert fetched.model_name == "catvton"
+    assert fetched.model_name == "idm-vton"
     assert fetched.person_image_path == "uploads/person.jpg"
     assert fetched.garment_image_path == "uploads/garment.jpg"
 
