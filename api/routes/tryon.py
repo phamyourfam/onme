@@ -13,12 +13,15 @@ from fastapi import (
     File,
     Form,
     HTTPException,
+    Request,
+    Response,
     UploadFile,
 )
 
 from api.auth import check_and_refresh_credits, get_current_user
 from api.config import settings
 from api.models import Job
+from api.rate_limit import tryon_rate_limit
 from api.repository import JobRepository
 from api.schemas import JobResponse
 from api.services.pipeline import execute_tryon_job
@@ -32,7 +35,10 @@ ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp"}
 
 
 @router.post("/tryon", response_model=JobResponse)
+@tryon_rate_limit
 async def create_tryon(
+    request: Request,
+    response: Response,
     background_tasks: BackgroundTasks,
     person: UploadFile = File(...),
     garment: UploadFile = File(...),
