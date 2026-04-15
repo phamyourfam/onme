@@ -60,6 +60,7 @@ async def execute_tryon_job(job_id: str) -> None:
         t0 = time.monotonic()
         raw_output_path = str(settings.results_dir / f"{job_id}_raw.jpg")
         run_and_save_sync(
+            job_id=job_id,
             model_name=job.model_name,
             person_image_path=result["person_processed"],
             garment_image_path=result["garment_processed"],
