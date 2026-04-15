@@ -73,13 +73,13 @@ def test_upload_success(client):
     resp = client.post(
         "/tryon",
         files={"person": person, "garment": garment},
-        data={"model_name": "catvton"},
+        data={"model_name": "idm-vton"},
         headers=headers,
     )
     assert resp.status_code == 200
     body = resp.json()
     assert body["status"] == "pending"
-    assert body["model_name"] == "catvton"
+    assert body["model_name"] == "idm-vton"
     assert body["id"]  # non-empty
 
 
@@ -89,7 +89,7 @@ def test_upload_rejects_missing_person(client):
     resp = client.post(
         "/tryon",
         files={"garment": garment},
-        data={"model_name": "catvton"},
+        data={"model_name": "idm-vton"},
         headers=headers,
     )
     assert resp.status_code == 422
@@ -118,7 +118,7 @@ def test_get_job_success(client):
     create_resp = client.post(
         "/tryon",
         files={"person": person, "garment": garment},
-        data={"model_name": "catvton"},
+        data={"model_name": "idm-vton"},
         headers=headers,
     )
     job_id = create_resp.json()["id"]

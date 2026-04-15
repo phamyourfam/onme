@@ -75,7 +75,7 @@ def test_upload_and_poll(client):
             "person": ("person.jpg", person_buf, "image/jpeg"),
             "garment": ("garment.jpg", garment_buf, "image/jpeg"),
         },
-        data={"model_name": "catvton"},
+        data={"model_name": "idm-vton"},
         headers=headers,
     )
     assert resp.status_code == 200
@@ -108,7 +108,7 @@ def test_rejects_invalid_inputs(client):
             "person": ("notes.txt", text_file, "text/plain"),
             "garment": ("garment.jpg", garment_buf, "image/jpeg"),
         },
-        data={"model_name": "catvton"},
+        data={"model_name": "idm-vton"},
         headers=headers,
     )
     assert resp.status_code == 400
@@ -180,7 +180,7 @@ def test_full_pipeline_with_replicate(tmp_path):
                 "person": ("person.jpg", person_buf, "image/jpeg"),
                 "garment": ("garment.jpg", garment_buf, "image/jpeg"),
             },
-            data={"model_name": "catvton"},
+            data={"model_name": "idm-vton"},
             headers=headers,
         )
         assert resp.status_code == 200

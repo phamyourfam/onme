@@ -131,14 +131,14 @@ def test_tryon_create_is_rate_limited_per_ip(client: TestClient) -> None:
             response = client.post(
                 "/api/tryon",
                 files=_build_tryon_files(),
-                data={"model_name": "catvton"},
+                data={"model_name": "idm-vton"},
             )
             assert response.status_code == 200
 
         response = client.post(
             "/api/tryon",
             files=_build_tryon_files(),
-            data={"model_name": "catvton"},
+            data={"model_name": "idm-vton"},
         )
 
     assert response.status_code == 429

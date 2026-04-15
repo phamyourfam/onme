@@ -32,7 +32,7 @@ router = APIRouter(tags=["tryon"])
 _repo = JobRepository()
 logger = logging.getLogger("onme.api.tryon")
 
-VALID_MODELS = {"catvton", "ootdiffusion"}
+VALID_MODELS = {"idm-vton", "ootdiffusion"}
 ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp"}
 
 

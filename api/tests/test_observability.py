@@ -84,7 +84,7 @@ def test_create_tryon_logs_job_queued(
         response = client.post(
             "/api/tryon",
             files=_build_tryon_files(),
-            data={"model_name": "catvton"},
+            data={"model_name": "idm-vton"},
         )
 
     assert response.status_code == 200
@@ -95,7 +95,7 @@ def test_create_tryon_logs_job_queued(
     )
     assert record.user_id == "user-1"
     assert record.job_id == job_id
-    assert record.model_name == "catvton"
+    assert record.model_name == "idm-vton"
 
 
 def test_run_inference_sync_logs_replicate_success(
@@ -114,7 +114,7 @@ def test_run_inference_sync_logs_replicate_success(
     with patch("api.services.inference.replicate.Client", return_value=fake_client):
         output_url = run_inference_sync(
             job_id="job-1",
-            model_name="catvton",
+            model_name="idm-vton",
             person_image_path=str(person_path),
             garment_image_path=str(garment_path),
         )
@@ -129,7 +129,7 @@ def test_run_inference_sync_logs_replicate_success(
         "replicate_api_responded",
     ]
     assert events[0].job_id == "job-1"
-    assert events[0].model_name == "catvton"
+    assert events[0].model_name == "idm-vton"
     assert events[1].outcome == "success"
 
 
@@ -152,7 +152,7 @@ def test_run_inference_sync_logs_replicate_failure(
     ):
         run_inference_sync(
             job_id="job-1",
-            model_name="catvton",
+            model_name="idm-vton",
             person_image_path=str(person_path),
             garment_image_path=str(garment_path),
         )
