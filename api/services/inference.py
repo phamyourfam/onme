@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import httpx
+import logging
 import replicate
 
 from api.config import settings
@@ -17,12 +18,32 @@ MODEL_INPUT_KEYS: dict[str, dict[str, str]] = {
     "catvton": {"person": "image", "garment": "cloth"},
     "ootdiffusion": {"person": "model_image", "garment": "cloth_image"},
 }
+logger = logging.getLogger("onme.api.inference")
+
+
+def _build_log_context(model_name: str, job_id: str | None) -> dict[str, str]:
+    context = {"model_name": model_name}
+    if job_id is not None:
+        context["job_id"] = job_id
+    return context
+
+
+def _extract_output_url(output: object) -> str:
+    """Normalize Replicate output into a single URL string."""
+
+    if isinstance(output, list):
+        if not output:
+            raise ValueError("Replicate returned no output URLs.")
+        return str(output[0])
+    return str(output)
 
 
 def run_inference_sync(
     model_name: str,
     person_image_path: str,
     garment_image_path: str,
+    *,
+    job_id: str | None = None,
 ) -> str:
     """Run a synchronous inference call against the Replicate API.
 
@@ -34,6 +55,7 @@ def run_inference_sync(
         model_name: Key into ``MODEL_REGISTRY`` (e.g. ``"catvton"``).
         person_image_path: Local path to the person image file.
         garment_image_path: Local path to the garment image file.
+        job_id: The try-on job identifier for observability, when available.
 
     Returns:
         The output URL string produced by the model.
@@ -53,20 +75,42 @@ def run_inference_sync(
         api_token=settings.replicate_api_key.get_secret_value()
     )
 
-    with open(person_image_path, "rb") as person_file, \
-         open(garment_image_path, "rb") as garment_file:
-        output = client.run(
-            model_id,
-            input={
-                keys["person"]: person_file,
-                keys["garment"]: garment_file,
+    logger.info(
+        "replicate_api_called",
+        extra=_build_log_context(model_name, job_id),
+    )
+
+    try:
+        with open(person_image_path, "rb") as person_file, open(
+            garment_image_path, "rb"
+        ) as garment_file:
+            output = client.run(
+                model_id,
+                input={
+                    keys["person"]: person_file,
+                    keys["garment"]: garment_file,
+                },
+            )
+        output_url = _extract_output_url(output)
+    except Exception as exc:
+        logger.error(
+            "replicate_api_responded",
+            extra={
+                **_build_log_context(model_name, job_id),
+                "outcome": "failure",
+                "error": str(exc),
             },
         )
+        raise
 
-    # Replicate may return a single URL string or a list of URLs.
-    if isinstance(output, list):
-        return str(output[0])
-    return str(output)
+    logger.info(
+        "replicate_api_responded",
+        extra={
+            **_build_log_context(model_name, job_id),
+            "outcome": "success",
+        },
+    )
+    return output_url
 
 
 def download_result(url: str, save_path: str) -> str:
@@ -92,6 +136,8 @@ def run_and_save_sync(
     person_image_path: str,
     garment_image_path: str,
     output_path: str,
+    *,
+    job_id: str | None = None,
 ) -> str:
     """Run inference and download the result in one call.
 
@@ -103,9 +149,15 @@ def run_and_save_sync(
         person_image_path: Local path to the person image file.
         garment_image_path: Local path to the garment image file.
         output_path: Local path where the result image will be saved.
+        job_id: The try-on job identifier for observability, when available.
 
     Returns:
         The *output_path* that was written to.
     """
-    url = run_inference_sync(model_name, person_image_path, garment_image_path)
+    url = run_inference_sync(
+        model_name,
+        person_image_path,
+        garment_image_path,
+        job_id=job_id,
+    )
     return download_result(url, output_path)

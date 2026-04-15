@@ -3,6 +3,7 @@ Virtual try-on upload and job status routes.
 """
 
 import json
+import logging
 import uuid
 from datetime import datetime, timezone
 
@@ -29,6 +30,7 @@ from api.services.pipeline import execute_tryon_job
 router = APIRouter(tags=["tryon"])
 
 _repo = JobRepository()
+logger = logging.getLogger("onme.api.tryon")
 
 VALID_MODELS = {"catvton", "ootdiffusion"}
 ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp"}
@@ -87,6 +89,14 @@ async def create_tryon(
     )
     await _repo.create_job(job)
     background_tasks.add_task(execute_tryon_job, job.id)
+    logger.info(
+        "tryon_job_queued",
+        extra={
+            "user_id": user_id,
+            "job_id": job.id,
+            "model_name": job.model_name,
+        },
+    )
 
     return JobResponse(
         id=job.id,

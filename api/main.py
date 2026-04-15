@@ -15,6 +15,7 @@ from slowapi.middleware import SlowAPIMiddleware
 
 from api.config import settings
 from api.database import close_database, init_models, ping_database
+from api.logging_config import configure_logging
 from api.rate_limit import limiter
 from api.routes.auth import router as auth_router
 from api.routes.garments import router as garments_router
@@ -22,7 +23,7 @@ from api.routes.health import router as health_router
 from api.routes.moodboards import router as moodboards_router
 from api.routes.tryon import router as tryon_router
 
-logging.basicConfig(level=logging.INFO)
+configure_logging()
 logger = logging.getLogger("onme.api")
 
 _LOCAL_CORS_HOSTS = {"localhost", "127.0.0.1", "::1"}
@@ -89,8 +90,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     await init_models()
     await ping_database()
     logger.info(
-        "Startup checks passed; assets rooted at %s",
-        settings.asset_storage_path,
+        "startup_checks_passed",
+        extra={"asset_storage_path": str(settings.asset_storage_path)},
     )
     yield
     await close_database()
