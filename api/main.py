@@ -23,7 +23,7 @@ from api.routes.health import router as health_router
 from api.routes.moodboards import router as moodboards_router
 from api.routes.tryon import router as tryon_router
 
-configure_logging()
+configure_logging(environment=settings.environment)
 logger = logging.getLogger("onme.api")
 
 _LOCAL_CORS_HOSTS = {"localhost", "127.0.0.1", "::1"}

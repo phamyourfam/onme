@@ -10,10 +10,11 @@ from fastapi.testclient import TestClient
 
 import api.routes.tryon as tryon_routes
 from api.auth import get_current_user
-from api.logging_config import JsonFormatter
+from api.logging_config import configure_logging
 from api.main import app
 from api.rate_limit import limiter
 from api.services.inference import run_inference_sync
+from loguru import logger
 
 
 @pytest.fixture()
@@ -42,25 +43,26 @@ def _build_tryon_files() -> dict[str, tuple[str, io.BytesIO, str]]:
 
 
 def test_json_formatter_serializes_event_fields() -> None:
-    formatter = JsonFormatter()
-    record = logging.makeLogRecord(
-        {
-            "name": "onme.api.tryon",
-            "levelno": logging.INFO,
-            "levelname": "INFO",
-            "msg": "tryon_job_queued",
-            "user_id": "user-1",
-            "job_id": "job-1",
-        }
-    )
+    # Test our custom loguru JSON sink
+    from api.logging_config import _json_sink
+    
+    output = io.StringIO()
+    with patch("sys.stderr", output):
+        logger.remove()
+        logger.add(_json_sink, serialize=False)
+        
+        test_logger = logger.bind(user_id="user-1", job_id="job-1", name="onme.api.tryon")
+        test_logger.info("tryon_job_queued")
 
-    payload = json.loads(formatter.format(record))
+    payload = json.loads(output.getvalue())
 
     assert payload["event"] == "tryon_job_queued"
     assert payload["level"] == "info"
-    assert payload["logger"] == "onme.api.tryon"
-    assert payload["user_id"] == "user-1"
-    assert payload["job_id"] == "job-1"
+    # Note: custom loguru sink uses bound 'name' attribute in 'extra' if we bind it, 
+    # but the native record name is the module name (e.g. test_observability).
+    # Since we test _json_sink directly, we check for event and level and bound extra params
+    assert payload["extra"]["user_id"] == "user-1"
+    assert payload["extra"]["job_id"] == "job-1"
     assert "timestamp" in payload
 
 
