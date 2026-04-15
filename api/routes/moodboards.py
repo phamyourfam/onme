@@ -26,7 +26,9 @@ from api.schemas import (
 router = APIRouter(prefix="/moodboards", tags=["moodboards"])
 
 
-class _CreateBody(MoodboardTitleUpdate):
+from pydantic import BaseModel
+
+class _CreateBody(BaseModel):
     """Optional JSON body for moodboard creation."""
 
     title: str = "Untitled"
