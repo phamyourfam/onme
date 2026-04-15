@@ -1,4 +1,4 @@
-"""Authentication routes: register and login."""
+"""Authentication routes: register, login, and current user hydration."""
 
 import uuid
 from datetime import datetime, timezone
@@ -8,13 +8,19 @@ from fastapi.security import OAuth2PasswordRequestForm
 
 from api.auth import (
     create_access_token,
+    get_current_user,
     hash_password,
     verify_password,
 )
 from api.models import User
 from api.rate_limit import auth_rate_limit
-from api.repositories.user_repo import create_user, get_user_by_email
+from api.repositories.user_repo import (
+    create_user,
+    get_user_by_email,
+    get_user_by_id,
+)
 from api.schemas import (
+    AuthMeResponse,
     LoginResponse,
     RegisterRequest,
     RegisterResponse,
@@ -94,3 +100,19 @@ async def login(
 
     token = create_access_token(user.id)
     return LoginResponse(access_token=token, token_type="bearer")
+
+
+@router.get("/me", response_model=AuthMeResponse)
+async def get_me(
+    user_id: str = Depends(get_current_user),
+) -> AuthMeResponse:
+    """Return the authenticated user's current profile snapshot."""
+    user = await get_user_by_id(user_id)
+    if user is None:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    return AuthMeResponse(
+        id=user.id,
+        email=user.email,
+        credits_remaining=user.credits_remaining,
+    )

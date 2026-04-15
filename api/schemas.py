@@ -42,6 +42,14 @@ class LoginResponse(BaseModel):
     token_type: str
 
 
+class AuthMeResponse(BaseModel):
+    """Authenticated user profile returned to the SPA."""
+
+    id: str
+    email: str
+    credits_remaining: int
+
+
 class GarmentResponse(BaseModel):
     """Public representation of a garment catalog item."""
 
