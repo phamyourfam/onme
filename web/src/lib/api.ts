@@ -33,9 +33,9 @@ export class ApiError extends Error {
 function getToastMessage(status: number, detail: string): { message: string; type: 'error' | 'warning' } {
 	switch (status) {
 		case 429:
-			return { message: 'Too many requests. Please slow down.', type: 'warning' };
+			return { message: detail || 'Too many requests. Please slow down.', type: 'warning' };
 		case 403:
-			return { message: 'Insufficient credits. Please top up.', type: 'warning' };
+			return { message: detail || 'Access denied.', type: 'warning' };
 		case 500:
 			return { message: 'An unexpected server error occurred.', type: 'error' };
 		case 504:

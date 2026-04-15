@@ -38,8 +38,8 @@ def _encode_canvas(canvas_state: dict[str, object] | None) -> str | None:
 
 def _to_moodboard(model: MoodboardORM) -> Moodboard:
     return Moodboard(
-        id=str(model.id),
-        user_id=str(model.user_id),
+        id=model.id.hex,
+        user_id=model.user_id.hex,
         title=model.title,
         canvas_state=_encode_canvas(model.canvas_state),
         created_at=model.created_at.isoformat(),

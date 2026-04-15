@@ -44,7 +44,7 @@ def _encode_intermediates(
 
 def _to_job(model: TryOnJobORM) -> Job:
     return Job(
-        id=str(model.id),
+        id=model.id.hex,
         status=model.status,
         model_name=model.model_name,
         person_image_path=model.person_asset_url,
@@ -60,7 +60,7 @@ def _to_job(model: TryOnJobORM) -> Job:
         preprocessing_ms=model.preprocessing_ms,
         inference_ms=model.inference_ms,
         postprocessing_ms=model.postprocessing_ms,
-        user_id=str(model.user_id) if model.user_id else None,
+        user_id=model.user_id.hex if model.user_id else None,
     )
 
 
