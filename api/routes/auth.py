@@ -3,7 +3,7 @@
 import uuid
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.security import OAuth2PasswordRequestForm
 
 from api.auth import (
@@ -12,6 +12,7 @@ from api.auth import (
     verify_password,
 )
 from api.models import User
+from api.rate_limit import auth_rate_limit
 from api.repositories.user_repo import create_user, get_user_by_email
 from api.schemas import (
     LoginResponse,
@@ -23,7 +24,12 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @router.post("/register", response_model=RegisterResponse)
-async def register(body: RegisterRequest) -> RegisterResponse:
+@auth_rate_limit
+async def register(
+    request: Request,
+    response: Response,
+    body: RegisterRequest,
+) -> RegisterResponse:
     """Register a new user account.
 
     Args:
@@ -59,7 +65,10 @@ async def register(body: RegisterRequest) -> RegisterResponse:
 
 
 @router.post("/login", response_model=LoginResponse)
+@auth_rate_limit
 async def login(
+    request: Request,
+    response: Response,
     form_data: OAuth2PasswordRequestForm = Depends(),
 ) -> LoginResponse:
     """Authenticate and return an access token.
