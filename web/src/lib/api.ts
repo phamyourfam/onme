@@ -3,12 +3,13 @@
 import type {
 	LoginResponse,
 	RegisterResponse,
+	AuthUser,
 	GarmentResponse,
 	MoodboardSummary,
 	MoodboardDetail,
-	JobStatus,
-	MetricsData
+	JobStatus
 } from './types';
+import { addToast } from './stores/toast.svelte';
 
 const API_BASE: string =
 	(import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:8000';
@@ -27,12 +28,34 @@ export class ApiError extends Error {
 	}
 }
 
+/* ── User-friendly error messages by status code ────────────────── */
+
+function getToastMessage(status: number, detail: string): { message: string; type: 'error' | 'warning' } {
+	switch (status) {
+		case 429:
+			return { message: 'Too many requests. Please slow down.', type: 'warning' };
+		case 403:
+			return { message: 'Insufficient credits. Please top up.', type: 'warning' };
+		case 500:
+			return { message: 'An unexpected server error occurred.', type: 'error' };
+		case 504:
+			return { message: 'The AI inference engine timed out.', type: 'error' };
+		default:
+			if (status >= 500) {
+				return { message: 'A server error occurred. Please try again.', type: 'error' };
+			}
+			return { message: detail || 'Something went wrong.', type: 'error' };
+	}
+}
+
 /* ── Core request helper ────────────────────────────────────────── */
 
 interface RequestOptions {
 	body?: unknown;
 	formData?: FormData;
 	urlEncoded?: URLSearchParams;
+	/** If true, suppress automatic toast on error. */
+	silent?: boolean;
 }
 
 async function apiRequest<T>(
@@ -71,7 +94,14 @@ async function apiRequest<T>(
 		// Auto-logout on 401 (token expired)
 		if (res.status === 401) {
 			localStorage.removeItem('onme_token');
+			localStorage.removeItem('onme_user');
 			window.dispatchEvent(new CustomEvent('onme:auth-expired'));
+		}
+
+		// Show toast for non-silent requests (skip auth-related 401s)
+		if (!options.silent && res.status !== 401) {
+			const { message, type } = getToastMessage(res.status, detail);
+			addToast(message, type);
 		}
 
 		throw new ApiError(res.status, detail);
@@ -100,34 +130,38 @@ export async function login(email: string, password: string): Promise<LoginRespo
 	params.append('username', email);
 	params.append('password', password);
 
-	return apiRequest<LoginResponse>('POST', '/auth/login', { urlEncoded: params });
+	return apiRequest<LoginResponse>('POST', '/api/auth/login', { urlEncoded: params });
 }
 
 export async function register(email: string, password: string): Promise<RegisterResponse> {
-	return apiRequest<RegisterResponse>('POST', '/auth/register', {
+	return apiRequest<RegisterResponse>('POST', '/api/auth/register', {
 		body: { email, password }
 	});
+}
+
+export async function getMe(): Promise<AuthUser> {
+	return apiRequest<AuthUser>('GET', '/api/auth/me', { silent: true });
 }
 
 /* ── Garment endpoints ──────────────────────────────────────────── */
 
 export async function getGarments(category?: string): Promise<GarmentResponse[]> {
 	const params = category ? `?category=${encodeURIComponent(category)}` : '';
-	return apiRequest<GarmentResponse[]>('GET', `/garments${params}`);
+	return apiRequest<GarmentResponse[]>('GET', `/api/garments${params}`);
 }
 
 /* ── Moodboard endpoints ────────────────────────────────────────── */
 
 export async function getMoodboards(): Promise<MoodboardSummary[]> {
-	return apiRequest<MoodboardSummary[]>('GET', '/moodboards');
+	return apiRequest<MoodboardSummary[]>('GET', '/api/moodboards/');
 }
 
 export async function getMoodboard(id: string): Promise<MoodboardDetail> {
-	return apiRequest<MoodboardDetail>('GET', `/moodboards/${id}`);
+	return apiRequest<MoodboardDetail>('GET', `/api/moodboards/${id}`);
 }
 
 export async function createMoodboard(title?: string): Promise<MoodboardDetail> {
-	return apiRequest<MoodboardDetail>('POST', '/moodboards', {
+	return apiRequest<MoodboardDetail>('POST', '/api/moodboards/', {
 		body: title ? { title } : {}
 	});
 }
@@ -135,14 +169,14 @@ export async function createMoodboard(title?: string): Promise<MoodboardDetail> 
 export async function updateMoodboardCanvas(
 	id: string,
 	canvasState: string
-): Promise<MoodboardDetail> {
-	return apiRequest<MoodboardDetail>('PUT', `/moodboards/${id}/canvas`, {
+): Promise<{ id: string; updated_at: string }> {
+	return apiRequest<{ id: string; updated_at: string }>('PUT', `/api/moodboards/${id}/canvas`, {
 		body: { canvas_state: canvasState }
 	});
 }
 
 export async function deleteMoodboard(id: string): Promise<void> {
-	return apiRequest<void>('DELETE', `/moodboards/${id}`);
+	return apiRequest<void>('DELETE', `/api/moodboards/${id}`);
 }
 
 /* ── Try-on endpoints ───────────────────────────────────────────── */
@@ -155,15 +189,15 @@ export async function submitTryOn(
 	const form = new FormData();
 	form.append('person', personFile);
 	form.append('garment', garmentFile);
-	form.append('model', modelName);
+	form.append('model_name', modelName);
 
-	return apiRequest<JobStatus>('POST', '/tryon', { formData: form });
+	return apiRequest<JobStatus>('POST', '/api/tryon', { formData: form });
 }
 
 export async function getJobStatus(id: string): Promise<JobStatus> {
-	return apiRequest<JobStatus>('GET', `/tryon/${id}`);
+	return apiRequest<JobStatus>('GET', `/api/tryon/${id}`);
 }
 
 export async function getJobHistory(): Promise<JobStatus[]> {
-	return apiRequest<JobStatus[]>('GET', '/tryon/history');
+	return apiRequest<JobStatus[]>('GET', '/api/tryon/history');
 }
