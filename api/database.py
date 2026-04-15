@@ -28,6 +28,9 @@ def build_asyncpg_connection_settings(database_url: str) -> tuple[str, dict[str,
     sslmode = query.pop("sslmode", None)
     if sslmode and sslmode != "disable":
         connect_args["ssl"] = True
+    
+    # asyncpg doesn't accept channel_binding as a direct parameter, so we pop it from the query
+    _ = query.pop("channel_binding", None)
 
     connect_args["server_settings"] = {"channel_binding": "disable"}
 
