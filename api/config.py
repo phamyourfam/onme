@@ -36,6 +36,18 @@ class Settings(BaseSettings):
         default="http://localhost:5173,http://127.0.0.1:5173",
         alias="ALLOWED_ORIGINS",
     )
+    rate_limit_storage_url: str = Field(
+        default="memory://",
+        alias="RATE_LIMIT_STORAGE_URL",
+    )
+    auth_rate_limit: str = Field(
+        default="5/minute",
+        alias="AUTH_RATE_LIMIT",
+    )
+    tryon_rate_limit: str = Field(
+        default="5/minute",
+        alias="TRYON_RATE_LIMIT",
+    )
     port: int = Field(default=8000, alias="PORT", ge=1, le=65535)
 
     @field_validator("database_url")
@@ -80,9 +92,27 @@ class Settings(BaseSettings):
         origins = [origin.strip() for origin in value.split(",") if origin.strip()]
         if not origins:
             raise ValueError("ALLOWED_ORIGINS must include at least one origin.")
-        if any(origin == "*" for origin in origins):
-            raise ValueError("ALLOWED_ORIGINS must not contain '*'.")
+        if any("*" in origin for origin in origins):
+            raise ValueError(
+                "ALLOWED_ORIGINS must not contain wildcard origins."
+            )
         return ",".join(origins)
+
+    @field_validator("rate_limit_storage_url")
+    @classmethod
+    def validate_rate_limit_storage_url(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("RATE_LIMIT_STORAGE_URL is required.")
+        return normalized
+
+    @field_validator("auth_rate_limit", "tryon_rate_limit")
+    @classmethod
+    def validate_rate_limit(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("Rate limit values must not be empty.")
+        return normalized
 
     @property
     def uploads_dir(self) -> Path:

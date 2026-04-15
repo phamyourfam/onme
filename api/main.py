@@ -4,13 +4,18 @@ import logging
 import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from urllib.parse import urlparse
 
 from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 
 from api.config import settings
 from api.database import close_database, init_models, ping_database
+from api.rate_limit import limiter
 from api.routes.auth import router as auth_router
 from api.routes.garments import router as garments_router
 from api.routes.health import router as health_router
@@ -19,6 +24,57 @@ from api.routes.tryon import router as tryon_router
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("onme.api")
+
+_LOCAL_CORS_HOSTS = {"localhost", "127.0.0.1", "::1"}
+
+
+def build_cors_origins(origins: list[str]) -> list[str]:
+    validated_origins: list[str] = []
+
+    for origin in origins:
+        if "*" in origin:
+            raise RuntimeError(
+                "ALLOWED_ORIGINS must not contain wildcard origins."
+            )
+
+        parsed = urlparse(origin)
+        if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+            raise RuntimeError(
+                f"Invalid CORS origin '{origin}'. Expected scheme://host[:port]."
+            )
+        if parsed.username or parsed.password:
+            raise RuntimeError(
+                f"Invalid CORS origin '{origin}'. Credentials are not allowed."
+            )
+        if parsed.path not in {"", "/"} or parsed.params or parsed.query or parsed.fragment:
+            raise RuntimeError(
+                f"Invalid CORS origin '{origin}'. Origins must not include a path, query, or fragment."
+            )
+
+        host = parsed.hostname.lower()
+        is_localhost = host in _LOCAL_CORS_HOSTS
+        is_cloudflare_pages = (
+            parsed.scheme == "https" and host.endswith(".pages.dev")
+        )
+
+        if not (is_localhost or is_cloudflare_pages):
+            raise RuntimeError(
+                "ALLOWED_ORIGINS entries must be localhost or Cloudflare Pages origins."
+            )
+        if is_cloudflare_pages and parsed.port is not None:
+            raise RuntimeError(
+                "Cloudflare Pages origins must not specify an explicit port."
+            )
+
+        normalized_host = f"[{host}]" if ":" in host else host
+        normalized_origin = f"{parsed.scheme}://{normalized_host}"
+        if parsed.port is not None:
+            normalized_origin = f"{normalized_origin}:{parsed.port}"
+
+        if normalized_origin not in validated_origins:
+            validated_origins.append(normalized_origin)
+
+    return validated_origins
 
 
 def ensure_asset_directories() -> None:
@@ -46,12 +102,15 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins,
+    allow_origins=build_cors_origins(settings.cors_origins),
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
 api_router = APIRouter(prefix="/api")
