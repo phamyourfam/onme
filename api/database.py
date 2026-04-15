@@ -39,7 +39,7 @@ engine: AsyncEngine = create_async_engine(
     connect_args=connect_args,
     pool_pre_ping=True,
     pool_recycle=1800,
-    echo=settings.environment == "local",
+    echo=False,
 )
 
 AsyncSessionFactory = async_sessionmaker(
