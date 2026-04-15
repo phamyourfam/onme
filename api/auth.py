@@ -104,7 +104,7 @@ async def get_current_user(
         user = await get_user_by_id(user_id)
         if user is None:
             raise HTTPException(status_code=401, detail="Invalid token")
-        return user_id
+        return user.id
     except JWTError:
         raise HTTPException(
             status_code=401, detail="Invalid token"

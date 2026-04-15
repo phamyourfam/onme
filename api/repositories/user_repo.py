@@ -18,7 +18,7 @@ def _as_uuid(value: str) -> uuid.UUID:
 
 def _to_user(model: UserORM) -> User:
     return User(
-        id=str(model.id),
+        id=model.id.hex,
         email=model.email,
         hashed_password=model.hashed_password,
         credits_remaining=model.credits_remaining,
