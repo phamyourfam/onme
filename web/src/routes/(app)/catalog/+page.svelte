@@ -2,13 +2,19 @@
 	import { getGarments, getImageUrl } from '$lib/api';
 	import type { GarmentResponse } from '$lib/types';
 	import { onMount } from 'svelte';
+	import { fly, fade } from 'svelte/transition';
 
 	let activeCategory = $state('All');
-	let allGarments = $state<GarmentResponse[]>([]);
+	let fetchedGarments = $state<GarmentResponse[]>([]);
 	let loading = $state(true);
 	let urlInput = $state('');
 
-	let dynamicCategories = $derived(['All', ...new Set(allGarments.map(g => g.category).filter(Boolean))]);
+	// Artificially duplicate the dataset 5x to create a deep infinite scroll experience
+	let allGarments = $derived(
+		Array(5).fill(0).flatMap((_, i) => fetchedGarments.map(g => ({ ...g, id: `${g.id}_${i}` })))
+	);
+
+	let dynamicCategories = $derived(['All', ...new Set(fetchedGarments.map(g => g.category).filter(Boolean))]);
 	let filteredGarments = $derived(
 		activeCategory === 'All'
 			? allGarments
@@ -52,10 +58,10 @@
 	async function loadGarments() {
 		loading = true;
 		try {
-			allGarments = await getGarments();
+			fetchedGarments = await getGarments();
 		} catch (error) {
 			console.error('Failed to load garments:', error);
-			allGarments = [];
+			fetchedGarments = [];
 		} finally {
 			loading = false;
 		}
@@ -130,7 +136,10 @@
 	{:else}
 		<div class="columns-2 gap-3 p-4 sm:columns-3 md:columns-4">
 			{#each visibleGarments as garment (garment.id)}
-				<div class="group relative mb-3 break-inside-avoid cursor-pointer overflow-hidden rounded-2xl bg-surface-card">
+				<div 
+					in:fly={{ y: 60, duration: 600, opacity: 0 }}
+					class="group relative mb-3 break-inside-avoid cursor-pointer overflow-hidden rounded-2xl bg-surface-card"
+				>
 					<!-- Garment Image -->
 					<img
 						src={getImageUrl(garment.image_url)}
@@ -164,8 +173,11 @@
 			
 			<!-- Infinite Scroll Skeletons -->
 			{#if isFetchingMore}
-				{#each Array(4) as _}
-					<div class="mb-3 break-inside-avoid">
+				{#each Array(4) as _, idx (idx)}
+					<div 
+						out:fade={{ duration: 200 }} 
+						class="mb-3 break-inside-avoid"
+					>
 						<div
 							class="animate-pulse rounded-2xl bg-surface-card"
 							style="height: {Math.floor(Math.random() * (320 - 160 + 1) + 160)}px;"
