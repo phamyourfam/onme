@@ -34,10 +34,10 @@ export interface JobStatus {
 /** A garment returned by the catalog API. */
 export interface GarmentResponse {
 	id: string;
+	title: string;
 	image_url: string;
 	category: string;
-	display_name: string;
-	source_credit: string | null;
+	source: string;
 }
 
 /** Moodboard list item (summary). */

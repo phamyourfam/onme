@@ -3,21 +3,25 @@
 	import type { GarmentResponse } from '$lib/types';
 	import { onMount } from 'svelte';
 
-	const categories = ['All', 'Tops', 'Bottoms', 'Dresses', 'Outerwear'];
 	let activeCategory = $state('All');
-	let garments = $state<GarmentResponse[]>([]);
+	let allGarments = $state<GarmentResponse[]>([]);
 	let loading = $state(true);
 	let urlInput = $state('');
 
-	async function loadGarments(category: string) {
+	let dynamicCategories = $derived(['All', ...new Set(allGarments.map(g => g.category).filter(Boolean))]);
+	let filteredGarments = $derived(
+		activeCategory === 'All'
+			? allGarments
+			: allGarments.filter(g => g.category === activeCategory)
+	);
+
+	async function loadGarments() {
 		loading = true;
 		try {
-			// If 'All', pass undefined to fetch all garments
-			const queryCat = category === 'All' ? undefined : category;
-			garments = await getGarments(queryCat);
+			allGarments = await getGarments();
 		} catch (error) {
 			console.error('Failed to load garments:', error);
-			garments = [];
+			allGarments = [];
 		} finally {
 			loading = false;
 		}
@@ -25,11 +29,11 @@
 
 	// Fetch initially when component mounts
 	onMount(() => {
-		loadGarments(activeCategory);
+		loadGarments();
 	});
 
-	function handleTryOn(garmentId: string) {
-		console.log('Selected garment for Try On:', garmentId);
+	function handleTryOn(imageUrl: string) {
+		console.log('Selected garment for Try On:', imageUrl);
 		// Proceed to try-on flow (Epic 8)
 	}
 
@@ -53,9 +57,9 @@
 	<!-- CATEGORY TABS -->
 	<div class="scrollbar-hide overflow-x-auto p-4">
 		<div class="flex gap-2">
-			{#each categories as category}
+			{#each dynamicCategories as category}
 				<button
-					onclick={() => { activeCategory = category; loadGarments(category); }}
+					onclick={() => { activeCategory = category; }}
 					class="whitespace-nowrap rounded-pill px-4 py-2 text-sm font-medium transition-colors
 					{activeCategory === category
 						? 'bg-white text-black'
@@ -79,7 +83,7 @@
 				</div>
 			{/each}
 		</div>
-	{:else if garments.length === 0}
+	{:else if filteredGarments.length === 0}
 		<div class="flex flex-col items-center justify-center p-12 text-center">
 			<svg xmlns="http://www.w3.org/2000/svg" class="mb-4 h-12 w-12 text-pin-medium-gray" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
@@ -91,12 +95,12 @@
 		</div>
 	{:else}
 		<div class="columns-2 gap-3 p-4 sm:columns-3 md:columns-4">
-			{#each garments as garment (garment.id)}
+			{#each filteredGarments as garment (garment.id)}
 				<div class="group relative mb-3 break-inside-avoid cursor-pointer overflow-hidden rounded-2xl bg-surface-card">
 					<!-- Garment Image -->
 					<img
 						src={getImageUrl(garment.image_url)}
-						alt={garment.display_name}
+						alt={garment.title}
 						class="w-full object-cover"
 						loading="lazy"
 						onerror={hideOnError}
@@ -104,18 +108,18 @@
 
 					<!-- Fallback label if image fails -->
 					<div class="absolute inset-0 flex items-center justify-center p-4 text-center text-sm font-medium text-pin-medium-gray -z-10">
-						{garment.display_name}
+						{garment.title}
 					</div>
 
 					<!-- Hover Overlay -->
 					<div class="absolute inset-0 flex flex-col justify-end bg-black/40 p-3 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
 						<!-- Optional: Source credit could go here -->
-						{#if garment.source_credit}
-							<span class="mb-2 text-xs text-white/80">{garment.source_credit}</span>
+						{#if garment.source}
+							<span class="mb-2 text-xs text-white/80">{garment.source}</span>
 						{/if}
 						
 						<button
-							onclick={() => handleTryOn(garment.id)}
+							onclick={() => handleTryOn(garment.image_url)}
 							class="w-full rounded-pill bg-pin-red px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-pin-red-hover"
 						>
 							Try On

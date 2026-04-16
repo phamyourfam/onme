@@ -145,9 +145,8 @@ export async function getMe(): Promise<AuthUser> {
 
 /* ── Garment endpoints ──────────────────────────────────────────── */
 
-export async function getGarments(category?: string): Promise<GarmentResponse[]> {
-	const params = category ? `?category=${encodeURIComponent(category)}` : '';
-	return apiRequest<GarmentResponse[]>('GET', `/api/garments${params}`);
+export async function getGarments(): Promise<GarmentResponse[]> {
+	return apiRequest<GarmentResponse[]>('GET', `/api/garments/catalog`);
 }
 
 /* ── Moodboard endpoints ────────────────────────────────────────── */
