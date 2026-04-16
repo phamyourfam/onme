@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { getGarments, getImageUrl } from '$lib/api';
 	import type { GarmentResponse } from '$lib/types';
+	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import { fly, fade } from 'svelte/transition';
 
@@ -73,8 +74,8 @@
 	});
 
 	function handleTryOn(imageUrl: string) {
-		console.log('Selected garment for Try On:', imageUrl);
-		// Proceed to try-on flow (Epic 8)
+		const fullUrl = getImageUrl(imageUrl);
+		goto(`/tryon?garment_url=${encodeURIComponent(fullUrl)}`);
 	}
 
 	function handleUrlSubmit(e: Event) {

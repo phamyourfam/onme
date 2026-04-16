@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { goto } from '$app/navigation';
+	import { page } from '$app/stores';
 	import { submitTryOn, getJobStatus, getImageUrl, getMoodboards, createMoodboard } from '$lib/api';
 	import { addToast } from '$lib/stores/toast.svelte';
 	import { refreshUser } from '$lib/stores/auth.svelte';
@@ -35,7 +36,33 @@
 	onDestroy(() => {
 		stopPolling();
 		if (personPreview) URL.revokeObjectURL(personPreview);
-		if (garmentPreview) URL.revokeObjectURL(garmentPreview);
+		if (garmentPreview && garmentPreview.startsWith('blob:')) URL.revokeObjectURL(garmentPreview);
+	});
+
+	/* ── Parameter mapping & state reset ────────────────────────────── */
+	let lastProcessedUrl = $state<string | null>(null);
+
+	$effect(() => {
+		const paramGarment = $page.url.searchParams.get('garment_url');
+		if (paramGarment && paramGarment !== lastProcessedUrl) {
+			lastProcessedUrl = paramGarment;
+			
+			// Make sure try-on state is cleared for a new request
+			activeJob = null;
+			stopPolling();
+
+			garmentPreview = paramGarment;
+			
+			// Automatically resolve the external image URL to a File object for the API handler
+			fetch(paramGarment)
+				.then((res) => res.blob())
+				.then((blob) => {
+					garmentFile = new File([blob], 'catalog-garment.jpg', { type: blob.type });
+				})
+				.catch((err) => {
+					console.error('Failed to fetch garment blob:', err);
+				});
+		}
 	});
 
 	/* ── File handlers ──────────────────────────────────────────────── */
