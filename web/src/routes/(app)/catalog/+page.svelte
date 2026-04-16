@@ -15,6 +15,40 @@
 			: allGarments.filter(g => g.category === activeCategory)
 	);
 
+	let visibleCount = $state(12);
+	let isFetchingMore = $state(false);
+	let sentinelElement: HTMLElement | undefined = $state();
+
+	let visibleGarments = $derived(filteredGarments.slice(0, visibleCount));
+
+	// Reset scroll pagination when switching categories
+	$effect(() => {
+		activeCategory;
+		visibleCount = 12;
+	});
+
+	// IntersectionObserver for near-seamless rate-limited infinite scrolling
+	$effect(() => {
+		if (!sentinelElement) return;
+
+		const observer = new IntersectionObserver(
+			(entries) => {
+				if (entries[0].isIntersecting && !isFetchingMore && visibleCount < filteredGarments.length) {
+					isFetchingMore = true;
+					// Artificial timeout to demonstrate skeleton loader / "rate limit"
+					setTimeout(() => {
+						visibleCount += 12;
+						isFetchingMore = false;
+					}, 600);
+				}
+			},
+			{ rootMargin: '400px' }
+		);
+
+		observer.observe(sentinelElement);
+		return () => observer.disconnect();
+	});
+
 	async function loadGarments() {
 		loading = true;
 		try {
@@ -95,7 +129,7 @@
 		</div>
 	{:else}
 		<div class="columns-2 gap-3 p-4 sm:columns-3 md:columns-4">
-			{#each filteredGarments as garment (garment.id)}
+			{#each visibleGarments as garment (garment.id)}
 				<div class="group relative mb-3 break-inside-avoid cursor-pointer overflow-hidden rounded-2xl bg-surface-card">
 					<!-- Garment Image -->
 					<img
@@ -127,7 +161,24 @@
 					</div>
 				</div>
 			{/each}
+			
+			<!-- Infinite Scroll Skeletons -->
+			{#if isFetchingMore}
+				{#each Array(4) as _}
+					<div class="mb-3 break-inside-avoid">
+						<div
+							class="animate-pulse rounded-2xl bg-surface-card"
+							style="height: {Math.floor(Math.random() * (320 - 160 + 1) + 160)}px;"
+						></div>
+					</div>
+				{/each}
+			{/if}
 		</div>
+
+		<!-- Sentinel hidden div for intersection observer trigger -->
+		{#if visibleCount < filteredGarments.length}
+			<div bind:this={sentinelElement} class="h-10 w-full opacity-0"></div>
+		{/if}
 	{/if}
 
 	<!-- FLOATING INPUT BAR -->
