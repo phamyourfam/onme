@@ -195,11 +195,7 @@
 	{/if}
 
 	<!-- FLOATING INPUT BAR -->
-<<<<<<< HEAD
-	<div class="pointer-events-none fixed inset-x-0 bottom-6 z-30 flex items-center justify-center px-4">
-=======
 	<div class="pointer-events-none fixed inset-x-0 md:left-72 bottom-6 z-30 flex items-center justify-center px-4">
->>>>>>> 43933ad (fix(web): center garment url input bar in catalog footer)
 		<div class="pointer-events-auto w-full max-w-xl mx-auto flex items-center justify-center rounded-pill border border-white/10 bg-surface-card/80 shadow-2xl backdrop-blur-xl">
 			<form
 				onsubmit={handleUrlSubmit}
