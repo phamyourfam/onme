@@ -35,17 +35,14 @@ class FakeStoreProvider(BaseGarmentProvider):
             category_raw = item.get("category", "")
             cat_lower = category_raw.lower()
             
-            # Map "men's clothing", "women's clothing" -> Tops
-            # Map anything else slightly clothing related -> Outerwear
-            # otherwise -> Accessories
-            if "clothing" in cat_lower:
-                normalized_cat = "Tops"
-            else:
-                normalized_cat = "Accessories"
+            if "clothing" not in cat_lower:
+                continue
+
+            normalized_cat = "Tops"
 
             items.append(
                 GarmentItem(
-                    id=str(item.get("id")),
+                    id=f"fakestore_{item.get('id')}",
                     title=item.get("title", ""),
                     image_url=item.get("image", ""),
                     category=normalized_cat,
@@ -74,9 +71,13 @@ class PlatziStoreProvider(BaseGarmentProvider):
                 except Exception:
                     pass
 
+            url_lower = image_url.lower()
+            if any(bad in url_lower for bad in ["placeimg", "placeholder", "imgur.com", "any"]):
+                continue
+
             items.append(
                 GarmentItem(
-                    id=str(item.get("id")),
+                    id=f"platzi_{item.get('id')}",
                     title=item.get("title", ""),
                     image_url=image_url,
                     category="Outerwear",  # Platzi clothing category
