@@ -128,3 +128,17 @@ class Moodboard:
     updated_at: str = field(
         default_factory=lambda: datetime.now(timezone.utc).isoformat()
     )
+
+
+@dataclass
+class MoodboardNode:
+    """A single node (image, note, etc.) on a moodboard canvas.
+    """
+    id: str
+    moodboard_id: str
+    type: str
+    content: str
+    position_x: float
+    position_y: float
+    width: float
+    height: float

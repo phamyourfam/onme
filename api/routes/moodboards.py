@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
 
 from api.auth import get_current_user
-from api.models import Moodboard
+from api.models import Moodboard, MoodboardNode
 from api.repositories.moodboard_repo import (
     create_moodboard as repo_create,
     delete_moodboard as repo_delete,
@@ -15,12 +15,16 @@ from api.repositories.moodboard_repo import (
     list_user_moodboards as repo_list,
     update_moodboard_canvas as repo_update_canvas,
     update_moodboard_title as repo_update_title,
+    create_moodboard_node as repo_create_node,
+    delete_moodboard_node as repo_delete_node,
 )
 from api.schemas import (
     MoodboardCanvasUpdate,
     MoodboardDetail,
     MoodboardSummary,
     MoodboardTitleUpdate,
+    MoodboardNodeCreate,
+    MoodboardNodeResponse,
 )
 
 router = APIRouter(prefix="/moodboards", tags=["moodboards"])
@@ -163,6 +167,8 @@ async def update_canvas(
 async def update_title(
     moodboard_id: str,
     body: MoodboardTitleUpdate,
+    MoodboardNodeCreate,
+    MoodboardNodeResponse,
     user_id: str = Depends(get_current_user),
 ) -> dict:
     """Update the title of a moodboard.
