@@ -10,21 +10,30 @@
 	import { getMoodboards, createMoodboard } from '$lib/api';
 	import type { MoodboardSummary } from '$lib/types';
 
+	import { invalidateAll } from '$app/navigation';
+
 	let { children } = $props();
 
 	let sidebarOpen = $state(false);
 	let moodboards = $state<MoodboardSummary[]>([]);
 	let loadingMoodboards = $state(false);
 
+	// Reactive statement to re-fetch when page changes
+	$effect(() => {
+		if (getIsAuthenticated()) {
+			fetchMoodboards();
+		}
+
+		const handleRefresh = () => fetchMoodboards();
+		window.addEventListener('moodboards:refresh', handleRefresh);
+		return () => window.removeEventListener('moodboards:refresh', handleRefresh);
+	});
+
 	// Redirect unauthenticated users
 	$effect(() => {
 		if (!getIsAuthenticated()) {
 			goto('/');
 		}
-	});
-
-	onMount(async () => {
-		await fetchMoodboards();
 	});
 
 	async function fetchMoodboards() {

@@ -153,10 +153,22 @@
 				const res = await updateMoodboardTitle(moodboardId, newTitle);
 				moodboard.title = res.title;
 				lastSaved = new Date(res.updated_at).toLocaleTimeString();
+				target.innerText = res.title;
+				// trigger root layout refetch for sidebar
+				window.dispatchEvent(new CustomEvent('moodboards:refresh'));
 			} catch (err) {
 				target.innerText = moodboard.title;
 				addToast('Failed to update title.', 'error');
 			}
+		} else {
+			target.innerText = newTitle;
+		}
+	}
+
+	function handleTitleKeydown(e: KeyboardEvent) {
+		if (e.key === 'Enter') {
+			e.preventDefault();
+			(e.target as HTMLElement).blur();
 		}
 	}
 </script>
@@ -188,9 +200,12 @@
 				</a>
 
 				<span
+					role="textbox"
+					tabindex="0"
 					class="text-sm font-semibold text-white outline-none focus:ring-2 focus:ring-pin-red rounded px-1"
 					contenteditable="true"
 					onblur={handleTitleBlur}
+					onkeydown={handleTitleKeydown}
 				>
 					{moodboard?.title ?? 'Untitled'}
 				</span>
@@ -203,28 +218,30 @@
 					</span>
 				{/if}
 
-				<div class="group relative">
+				<div class="group relative z-50">
 					<button
 						class="rounded-gestalt bg-surface-card px-3 py-1.5 text-xs font-medium text-pin-medium-gray transition-colors hover:bg-surface-hover hover:text-white"
 					>
 						+ Add
 					</button>
-					<div class="absolute right-0 top-full mt-1 hidden min-w-[120px] flex-col overflow-hidden rounded bg-surface-card shadow-lg group-hover:flex">
-						<button
-							class="px-4 py-2 text-left text-xs text-pin-medium-gray hover:bg-surface-hover hover:text-white"
-							onclick={() => {
-								/* Add image trigger */
-								addToast('Coming soon: Image uploads', 'warning');
-							}}
-						>
-							Add Image
-						</button>
-						<button
-							class="px-4 py-2 text-left text-xs text-pin-medium-gray hover:bg-surface-hover hover:text-white"
-							onclick={addTextNode}
-						>
-							Add Note
-						</button>
+					<div class="absolute right-0 top-full pt-1 hidden min-w-[120px] flex-col group-hover:flex">
+						<div class="flex flex-col overflow-hidden rounded bg-surface-card shadow-lg">
+							<button
+								class="px-4 py-2 text-left text-xs text-pin-medium-gray hover:bg-surface-hover hover:text-white"
+								onclick={() => {
+									/* Add image trigger */
+									addToast('Coming soon: Image uploads', 'warning');
+								}}
+							>
+								Add Image
+							</button>
+							<button
+								class="px-4 py-2 text-left text-xs text-pin-medium-gray hover:bg-surface-hover hover:text-white"
+								onclick={addTextNode}
+							>
+								Add Note
+							</button>
+						</div>
 					</div>
 				</div>
 
@@ -247,7 +264,6 @@
 				{nodeTypes}
 				fitView
 				onnodedragstop={handleNodeDragStop}
-				onnoderesizestop={handleNodeDragStop}
 				onconnect={handleConnect}
 				ondelete={handleDelete}
 				colorMode="dark"
