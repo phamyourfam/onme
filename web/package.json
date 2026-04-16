@@ -26,6 +26,6 @@
 		"wrangler": "^4.83.0"
 	},
 	"dependencies": {
-		"@xyflow/svelte": "^1.5.1"
+		"@xyflow/svelte": "^1.5.2"
 	}
 }

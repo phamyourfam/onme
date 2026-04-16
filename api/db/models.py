@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, func, text
+from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text, func, text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -83,6 +83,37 @@ class MoodboardORM(Base):
     )
 
     user: Mapped[UserORM] = relationship(back_populates="moodboards")
+    nodes: Mapped[list["MoodboardNodeORM"]] = relationship(
+        back_populates="moodboard",
+        cascade="all, delete-orphan",
+    )
+
+
+class MoodboardNodeORM(Base):
+    __tablename__ = "moodboard_nodes"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+    )
+    moodboard_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("moodboards.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    type: Mapped[str] = mapped_column(
+        String(32),
+        nullable=False,
+    )  # 'image' or 'note'
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    position_x: Mapped[float] = mapped_column(Float, nullable=False)
+    position_y: Mapped[float] = mapped_column(Float, nullable=False)
+    width: Mapped[float] = mapped_column(Float, nullable=False)
+    height: Mapped[float] = mapped_column(Float, nullable=False)
+
+    moodboard: Mapped[MoodboardORM] = relationship(back_populates="nodes")
 
 
 class TryOnJobORM(Base):

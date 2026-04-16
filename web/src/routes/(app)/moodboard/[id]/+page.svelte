@@ -14,11 +14,12 @@
 	import '@xyflow/svelte/dist/style.css';
 
 	import ImageNode from '$lib/components/ImageNode.svelte';
-	import { getMoodboard, updateMoodboardCanvas, getImageUrl } from '$lib/api';
+	import { getMoodboard, updateMoodboardCanvas, updateMoodboardTitle, createMoodboardNode, getImageUrl } from '$lib/api';
 	import { addToast } from '$lib/stores/toast.svelte';
 	import type { MoodboardDetail } from '$lib/types';
+	import NoteNode from '$lib/components/NoteNode.svelte';
 
-	const nodeTypes = { image: ImageNode };
+	const nodeTypes = { image: ImageNode, note: NoteNode };
 
 	let moodboard = $state<MoodboardDetail | null>(null);
 	let loading = $state(true);
@@ -127,11 +128,27 @@
 	function addTextNode() {
 		const newNode: Node = {
 			id: `note-${Date.now()}`,
-			type: 'default',
+			type: 'note',
 			position: { x: 150 + Math.random() * 300, y: 150 + Math.random() * 200 },
-			data: { label: 'New Note' },
+			data: { text: '' },
 		};
 		nodes = [...nodes, newNode];
+		debouncedSave();
+	}
+
+	async function handleTitleBlur(e: Event) {
+		const target = e.target as HTMLElement;
+		const newTitle = target.innerText.trim() || 'Untitled';
+		if (moodboard && newTitle !== moodboard.title) {
+			try {
+				const res = await updateMoodboardTitle(moodboardId, newTitle);
+				moodboard.title = res.title;
+				lastSaved = new Date(res.updated_at).toLocaleTimeString();
+			} catch (err) {
+				target.innerText = moodboard.title;
+				addToast('Failed to update title.', 'error');
+			}
+		}
 	}
 </script>
 
@@ -161,9 +178,13 @@
 					Back
 				</a>
 
-				<h1 class="text-sm font-semibold text-white">
+				<span
+					class="text-sm font-semibold text-white outline-none focus:ring-2 focus:ring-pin-red rounded px-1"
+					contenteditable="true"
+					onblur={handleTitleBlur}
+				>
 					{moodboard?.title ?? 'Untitled'}
-				</h1>
+				</span>
 			</div>
 
 			<div class="flex items-center gap-2">
@@ -173,12 +194,30 @@
 					</span>
 				{/if}
 
-				<button
-					onclick={addTextNode}
-					class="rounded-gestalt bg-surface-card px-3 py-1.5 text-xs font-medium text-pin-medium-gray transition-colors hover:bg-surface-hover hover:text-white"
-				>
-					+ Note
-				</button>
+				<div class="group relative">
+					<button
+						class="rounded-gestalt bg-surface-card px-3 py-1.5 text-xs font-medium text-pin-medium-gray transition-colors hover:bg-surface-hover hover:text-white"
+					>
+						+ Add
+					</button>
+					<div class="absolute right-0 top-full mt-1 hidden min-w-[120px] flex-col overflow-hidden rounded bg-surface-card shadow-lg group-hover:flex">
+						<button
+							class="px-4 py-2 text-left text-xs text-pin-medium-gray hover:bg-surface-hover hover:text-white"
+							onclick={() => {
+								/* Add image trigger */
+								addToast('Coming soon: Image uploads', 'warning');
+							}}
+						>
+							Add Image
+						</button>
+						<button
+							class="px-4 py-2 text-left text-xs text-pin-medium-gray hover:bg-surface-hover hover:text-white"
+							onclick={addTextNode}
+						>
+							Add Note
+						</button>
+					</div>
+				</div>
 
 				<button
 					id="save-canvas-btn"

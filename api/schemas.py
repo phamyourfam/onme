@@ -94,3 +94,27 @@ class CreditsResponse(BaseModel):
     """Response showing remaining credits."""
 
     credits_remaining: int
+
+
+class MoodboardNodeBase(BaseModel):
+    """Base fields for a moodboard node."""
+
+    type: str  # 'image' or 'note'
+    content: str
+    position_x: float
+    position_y: float
+    width: float
+    height: float
+
+
+class MoodboardNodeCreate(MoodboardNodeBase):
+    """JSON body for creating a node."""
+
+    pass
+
+
+class MoodboardNodeResponse(MoodboardNodeBase):
+    """Public representation of a moodboard node."""
+
+    id: str
+    moodboard_id: str

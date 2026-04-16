@@ -9,8 +9,8 @@ from datetime import datetime, timezone
 from sqlalchemy import delete, select, update
 
 from api.database import AsyncSessionFactory
-from api.db.models import MoodboardORM
-from api.models import Moodboard
+from api.db.models import MoodboardNodeORM, MoodboardORM
+from api.models import Moodboard, MoodboardNode
 
 
 def _as_uuid(value: str) -> uuid.UUID:
@@ -118,3 +118,44 @@ async def delete_moodboard(moodboard_id: str, user_id: str) -> bool:
         )
         await session.commit()
     return result.rowcount > 0
+
+
+def _to_moodboard_node(model: MoodboardNodeORM) -> MoodboardNode:
+    return MoodboardNode(
+        id=model.id.hex,
+        moodboard_id=model.moodboard_id.hex,
+        type=model.type,
+        content=model.content,
+        position_x=model.position_x,
+        position_y=model.position_y,
+        width=model.width,
+        height=model.height,
+    )
+
+async def create_moodboard_node(node: MoodboardNode) -> MoodboardNode:
+    async with AsyncSessionFactory() as session:
+        model = MoodboardNodeORM(
+            id=_as_uuid(node.id),
+            moodboard_id=_as_uuid(node.moodboard_id),
+            type=node.type,
+            content=node.content,
+            position_x=node.position_x,
+            position_y=node.position_y,
+            width=node.width,
+            height=node.height,
+        )
+        session.add(model)
+        await session.commit()
+    return node
+
+async def delete_moodboard_node(node_id: str, moodboard_id: str) -> bool:
+    async with AsyncSessionFactory() as session:
+        result = await session.execute(
+            delete(MoodboardNodeORM).where(
+                MoodboardNodeORM.id == _as_uuid(node_id),
+                MoodboardNodeORM.moodboard_id == _as_uuid(moodboard_id),
+            )
+        )
+        await session.commit()
+    return result.rowcount > 0
+
