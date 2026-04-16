@@ -14,7 +14,7 @@
 	import '@xyflow/svelte/dist/style.css';
 
 	import ImageNode from '$lib/components/ImageNode.svelte';
-	import { getMoodboard, updateMoodboardCanvas, updateMoodboardTitle, createMoodboardNode, getImageUrl } from '$lib/api';
+	import { getMoodboard, updateMoodboardCanvas, updateMoodboardTitle, createMoodboardNode, getImageUrl, updateMoodboardNode } from '$lib/api';
 	import { addToast } from '$lib/stores/toast.svelte';
 	import type { MoodboardDetail } from '$lib/types';
 	import NoteNode from '$lib/components/NoteNode.svelte';
@@ -113,8 +113,17 @@
 		}, 1500);
 	}
 
-	function handleNodeDragStop() {
+	function handleNodeDragStop(e: any) {
 		debouncedSave();
+		const node = e.detail?.node ?? e.node; // fallback for different xyflow versions
+		if (node && moodboardId) {
+			updateMoodboardNode(moodboardId, node.id, {
+				x: node.position.x,
+				y: node.position.y,
+				width: node.width ?? node.data?.width,
+				height: node.height ?? node.data?.height
+			}).catch(console.error);
+		}
 	}
 
 	function handleConnect() {
@@ -238,6 +247,7 @@
 				{nodeTypes}
 				fitView
 				onnodedragstop={handleNodeDragStop}
+				onnoderesizestop={handleNodeDragStop}
 				onconnect={handleConnect}
 				ondelete={handleDelete}
 				colorMode="dark"
