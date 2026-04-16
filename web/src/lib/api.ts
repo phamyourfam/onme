@@ -165,6 +165,24 @@ export async function createMoodboard(title?: string): Promise<MoodboardDetail> 
 	});
 }
 
+export async function updateMoodboardTitle(
+	id: string,
+	title: string
+): Promise<{ id: string; title: string, updated_at: string }> {
+	return apiRequest<{ id: string; title: string, updated_at: string }>('PUT', `/api/moodboards/${id}/title`, {
+		body: { title }
+	});
+}
+
+export async function createMoodboardNode(
+	moodboardId: string,
+	node: any
+): Promise<any> {
+	return apiRequest<any>('POST', `/api/moodboards/${moodboardId}/nodes`, {
+		body: node
+	});
+}
+
 export async function updateMoodboardCanvas(
 	id: string,
 	canvasState: string
@@ -176,6 +194,17 @@ export async function updateMoodboardCanvas(
 
 export async function deleteMoodboard(id: string): Promise<void> {
 	return apiRequest<void>('DELETE', `/api/moodboards/${id}`);
+}
+
+export async function deleteMoodboardNode(moodboardId: string, nodeId: string): Promise<void> {
+	return apiRequest<void>('DELETE', `/api/moodboards/${moodboardId}/nodes/${nodeId}`, { silent: true });
+}
+
+export async function updateMoodboardNode(moodboardId: string, nodeId: string, payload: { x: number, y: number, width?: number, height?: number }): Promise<void> {
+	return apiRequest<void>('PATCH', `/api/moodboards/${moodboardId}/nodes/${nodeId}`, {
+		body: payload,
+		silent: true
+	});
 }
 
 /* ── Try-on endpoints ───────────────────────────────────────────── */
