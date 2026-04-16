@@ -5,14 +5,12 @@
 	
 	let { id, data, selected }: NodeProps = $props();
 	
-	let text = $state(data.text as string || '');
 	const updateNodeInternals = useUpdateNodeInternals();
 	const { deleteElements } = useSvelteFlow();
 
 	function onChange(e: Event) {
 		const target = e.target as HTMLTextAreaElement;
-		text = target.value;
-		data.text = text;
+		data.text = target.value;
 		updateNodeInternals(id);
 	}
 
@@ -57,7 +55,7 @@
 	<textarea
 		class="nodrag block h-full min-h-[100px] w-full resize-none bg-transparent p-4 text-sm text-gray-800 focus:outline-none"
 		placeholder="Type your notes here..."
-		value={text}
+		value={data.text as string || ''}
 		oninput={onChange}
 	></textarea>
 
