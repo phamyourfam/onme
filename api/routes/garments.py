@@ -14,12 +14,7 @@ router = APIRouter(prefix="/garments", tags=["garments"])
 from fastapi import APIRouter, Depends, HTTPException
 import asyncio
 from api.auth import get_current_user
-from api.services.garment_providers import (
-    GarmentItem,
-    FakeStoreProvider,
-    PlatziStoreProvider,
-    DatabaseProvider,
-)
+from api.services.providers import GarmentItem, get_all_providers
 
 @router.get("/", response_model=list[GarmentResponse])
 async def list_garments_route(
@@ -52,7 +47,7 @@ async def get_catalog_aggregator(
     user_id: str = Depends(get_current_user),
 ) -> list[GarmentItem]:
     """Concurrent aggregator endpoint for BFF architecture."""
-    providers = [FakeStoreProvider(), PlatziStoreProvider(), DatabaseProvider()]
+    providers = get_all_providers()
     
     # Execute all providers concurrently
     results = await asyncio.gather(
