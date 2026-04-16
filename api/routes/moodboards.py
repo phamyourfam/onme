@@ -167,8 +167,6 @@ async def update_canvas(
 async def update_title(
     moodboard_id: str,
     body: MoodboardTitleUpdate,
-    MoodboardNodeCreate,
-    MoodboardNodeResponse,
     user_id: str = Depends(get_current_user),
 ) -> dict:
     """Update the title of a moodboard.
