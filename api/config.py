@@ -62,6 +62,11 @@ class Settings(BaseSettings):
             raise ValueError("DATABASE_URL must include a hostname.")
         if not parsed.path or parsed.path == "/":
             raise ValueError("DATABASE_URL must include a database name.")
+        if "channel_binding" in parsed.query:
+            raise ValueError(
+                "DATABASE_URL should not include 'channel_binding' as the "
+                "asyncpg dialect natively used by SQLAlchemy does not support it."
+            )
         return value
 
     @field_validator("jwt_secret")
