@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import {
 		SvelteFlow,
@@ -33,15 +32,18 @@
 
 	const moodboardId = $derived(page.params.id as string);
 
-	onMount(async () => {
-		await loadMoodboard();
-		checkForInjectedImage();
+	$effect(() => {
+		if (moodboardId) {
+			loadMoodboard(moodboardId).then(() => {
+				checkForInjectedImage();
+			});
+		}
 	});
 
-	async function loadMoodboard() {
+	async function loadMoodboard(id: string) {
 		loading = true;
 		try {
-			const mb = await getMoodboard(moodboardId);
+			const mb = await getMoodboard(id);
 			moodboard = mb;
 
 			if (mb.canvas_state) {
@@ -53,6 +55,9 @@
 					nodes = [];
 					edges = [];
 				}
+			} else {
+				nodes = [];
+				edges = [];
 			}
 		} catch {
 			addToast('Failed to load moodboard.', 'error');
