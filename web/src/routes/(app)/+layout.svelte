@@ -51,6 +51,8 @@
 	async function handleNewMoodboard() {
 		try {
 			const mb = await createMoodboard();
+			// Optimistically prepend to the local reactive state instead of waiting for a full re-fetch:
+			moodboards = [mb, ...moodboards];
 			goto(`/moodboard/${mb.id}`);
 		} catch {
 			// Could show error toast in future
@@ -180,7 +182,7 @@
 								<a
 									href="/moodboard/{mb.id}"
 									onclick={closeSidebar}
-									class="truncate rounded-gestalt px-3 py-2 text-sm text-pin-medium-gray transition-colors hover:bg-surface-hover hover:text-white"
+									class="truncate rounded-gestalt px-3 py-2 text-sm transition-colors {isActive('/moodboard/' + mb.id) ? 'bg-surface-hover text-white' : 'text-pin-medium-gray hover:bg-surface-hover hover:text-white'}"
 								>
 									{mb.title}
 								</a>
