@@ -138,14 +138,14 @@ class="image-node group flex items-center justify-center relative rounded-2xl bo
         <div class="absolute -top-14 left-1/2 -translate-x-1/2 w-px h-14 bg-pin-red/50 pointer-events-none -z-10"></div>
 {/if}
 
-<NodeResizer isVisible={selected && !isLocked} minWidth={100} minHeight={100} keepAspectRatio={true} handleClass="!w-4 !h-4 !bg-pin-red !border-2 !border-white !rounded-full shadow-md !z-50" />
+<NodeResizer isVisible={selected && !isLocked} minWidth={100} minHeight={100} keepAspectRatio={false} handleClass="!w-4 !h-4 !bg-pin-red !border-2 !border-white !rounded-full shadow-md !z-50" />
 
 <div class="w-full h-full rounded-2xl overflow-hidden flex items-center justify-center pointer-events-none">
 {#if data?.imageUrl}
         <img
                 src={data.imageUrl as string}
                 alt={(data.label as string) ?? 'Image'}
-                class="w-full h-full object-cover pointer-events-auto"
+                class="w-full h-full object-fill pointer-events-auto"      
                 draggable="false"
         />
 {:else}
