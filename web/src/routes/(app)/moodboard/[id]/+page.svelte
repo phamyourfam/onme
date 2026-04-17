@@ -171,11 +171,69 @@
 			(e.target as HTMLElement).blur();
 		}
 	}
+
+	// Copy and paste logic
+	function handlePaste(e: ClipboardEvent) {
+		const items = e.clipboardData?.items;
+		if (!items) return;
+
+		for (const item of items) {
+			if (item.type.startsWith('image/')) {
+				e.preventDefault();
+				const file = item.getAsFile();
+				if (!file) continue;
+
+				const reader = new FileReader();
+				reader.onload = (event) => {
+					const dataUrl = event.target?.result as string;
+
+					// Create an Image object to get native dimensions
+					const img = new Image();
+					img.onload = () => {
+						// Scale down logic: assume we want a max dimension of e.g. 300px
+						const maxDim = 300;
+						let width = img.width;
+						let height = img.height;
+
+						if (width > maxDim || height > maxDim) {
+							if (width > height) {
+								height = (height / width) * maxDim;
+								width = maxDim;
+							} else {
+								width = (width / height) * maxDim;
+								height = maxDim;
+							}
+						}
+
+						const newNode: Node = {
+							id: `img-${Date.now()}`,
+							type: 'image',
+							position: { x: 150 + Math.random() * 200, y: 150 + Math.random() * 200 },
+							data: {
+								imageUrl: dataUrl,
+								label: 'Pasted Image',
+								width,
+								height
+							}
+						};
+
+						nodes = [...nodes, newNode];
+						debouncedSave();
+					};
+					img.src = dataUrl;
+				};
+				reader.readAsDataURL(file);
+				break; // Only handle the first image if there are multiple
+			}
+		}
+	}
 </script>
 
 <svelte:head>
 	<title>{moodboard?.title ?? 'Moodboard'} — OnMe</title>
 </svelte:head>
+
+<svelte:window onpaste={handlePaste} />
 
 {#if loading}
 	<div class="flex h-full items-center justify-center">
