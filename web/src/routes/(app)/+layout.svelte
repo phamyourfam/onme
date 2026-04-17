@@ -7,7 +7,7 @@
 		getAuthUser,
 		logoutAction
 	} from '$lib/stores/auth.svelte';
-	import { getMoodboards, createMoodboard } from '$lib/api';
+	import { getMoodboards, createMoodboard, deleteMoodboard } from '$lib/api';
 	import type { MoodboardSummary } from '$lib/types';
 
 	import { invalidateAll } from '$app/navigation';
@@ -56,6 +56,21 @@
 			goto(`/moodboard/${mb.id}`);
 		} catch {
 			// Could show error toast in future
+		}
+	}
+
+	async function handleDeleteMb(e: MouseEvent, id: string) {
+		e.stopPropagation();
+		try {
+			await deleteMoodboard(id);
+			moodboards = moodboards.filter(m => m.id !== id);
+			
+			// If we were viewing the deleted board, redirect to /catalog
+			if (page.params.id === id) {
+				goto('/catalog');
+			}
+		} catch {
+			// error toast could go here
 		}
 	}
 
@@ -179,13 +194,24 @@
 					{:else}
 						<div class="flex flex-col gap-0.5">
 							{#each moodboards as mb (mb.id)}
-								<a
-									href="/moodboard/{mb.id}"
-									onclick={closeSidebar}
-									class="truncate rounded-gestalt px-3 py-2 text-sm transition-colors {isActive('/moodboard/' + mb.id) ? 'bg-surface-hover text-white' : 'text-pin-medium-gray hover:bg-surface-hover hover:text-white'}"
-								>
-									{mb.title}
-								</a>
+								<div class="group relative flex items-center justify-between rounded-gestalt transition-colors {isActive('/moodboard/' + mb.id) ? 'bg-surface-hover text-white' : 'text-pin-medium-gray hover:bg-surface-hover hover:text-white'}">
+									<a
+										href="/moodboard/{mb.id}"
+										onclick={closeSidebar}
+										class="flex-1 truncate px-3 py-2 text-sm"
+									>
+										{mb.title}
+									</a>
+									<button
+										onclick={(e) => handleDeleteMb(e, mb.id)}
+										class="mr-2 hidden rounded p-1 hover:bg-white/10 group-hover:block"
+										aria-label="Delete moodboard"
+									>
+										<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+											<path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+										</svg>
+									</button>
+								</div>
 							{/each}
 						</div>
 					{/if}
