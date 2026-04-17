@@ -131,6 +131,49 @@
 		}
 	}
 
+	let fileInput = $state<HTMLInputElement>();
+
+	async function handleImageUpload(e: Event) {
+		const target = e.target as HTMLInputElement;
+		const file = target.files?.[0];
+		if (!file) return;
+
+		const reader = new FileReader();
+		reader.onload = (ev) => {
+			const dataUrl = ev.target?.result as string;
+			
+			const img = new Image();
+			img.onload = () => {
+				const maxH = 300;
+				const scale = img.height > maxH ? maxH / img.height : 1;
+				const w = img.width * scale;
+				const h = img.height * scale;
+
+				const newNode: Node = {
+					id: `img-${Date.now()}`,
+					type: 'image',
+					position: { x: 100 + Math.random() * 200, y: 100 + Math.random() * 200 },
+					data: {
+						label: file.name,
+						imageUrl: dataUrl,
+						width: w,
+						height: h,
+						moodboardId
+					},
+				};
+				nodes = [...nodes, newNode];
+				debouncedSave();
+			};
+			img.src = dataUrl;
+		};
+		reader.readAsDataURL(file);
+		target.value = '';
+	}
+
+	function triggerImageUpload() {
+		fileInput?.click();
+	}
+
 	function handleConnect() {
 		debouncedSave();
 	}
@@ -282,6 +325,13 @@
 				{/if}
 
 				<div class="group relative z-50">
+					<input
+						type="file"
+						accept="image/*"
+						bind:this={fileInput}
+						onchange={handleImageUpload}
+						class="hidden"
+					/>
 					<button
 						class="rounded-gestalt bg-surface-card px-3 py-1.5 text-xs font-medium text-pin-medium-gray transition-colors hover:bg-surface-hover hover:text-white"
 					>
@@ -291,10 +341,7 @@
 						<div class="flex flex-col overflow-hidden rounded bg-surface-card shadow-lg">
 							<button
 								class="px-4 py-2 text-left text-xs text-pin-medium-gray hover:bg-surface-hover hover:text-white"
-								onclick={() => {
-									/* Add image trigger */
-									addToast('Coming soon: Image uploads', 'warning');
-								}}
+								onclick={triggerImageUpload}
 							>
 								Add Image
 							</button>
