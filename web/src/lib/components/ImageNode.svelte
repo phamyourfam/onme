@@ -1,39 +1,135 @@
 <script lang="ts">
-	import { Handle, Position, type NodeProps, NodeResizer, NodeToolbar } from '@xyflow/svelte';
-	import { useSvelteFlow } from '@xyflow/svelte';
-	import { deleteMoodboardNode } from '$lib/api';
+        import { Handle, Position, type NodeProps, NodeResizer, NodeToolbar, useUpdateNodeInternals } from '@xyflow/svelte';
+        import { useSvelteFlow } from '@xyflow/svelte';
+        import { deleteMoodboardNode } from '$lib/api';
 
-	let { id, data, selected }: NodeProps = $props();
+        let { id, data, selected }: NodeProps = $props();
 
-	const { deleteElements } = useSvelteFlow();
+        const { deleteElements } = useSvelteFlow();
+        const updateNodeInternals = useUpdateNodeInternals();
 
-	async function handleDelete() {
-		// Try deleting from backend first
-		try {
-			if (data.moodboardId) {
-				await deleteMoodboardNode(data.moodboardId as string, id);
-			}
-			deleteElements({ nodes: [{ id }] });
-		} catch (e) {
-			console.error('Failed to delete node', e);
-		}
-	}
+        let rotation = $state(0);
+        let keepRatio = $state(false);
+        let nodeEl = $state<HTMLElement>();
+
+        $effect(() => {
+                rotation = (data.rotation as number) || 0;
+                keepRatio = (data.keepRatio as boolean) || false;
+        });
+
+        async function handleDelete() {
+                // Try deleting from backend first
+                try {
+                        if (data.moodboardId) {
+                                await deleteMoodboardNode(data.moodboardId as string, id);
+                        }
+                        deleteElements({ nodes: [{ id }] });
+                } catch (e) {
+                        console.error('Failed to delete node', e);
+                }
+        }
+
+        function resetRotation() {
+                rotation = 0;
+                data.rotation = 0;
+                updateNodeInternals(id);
+        }
+
+        function toggleRatio() {
+                keepRatio = !keepRatio;
+                data.keepRatio = keepRatio;
+                updateNodeInternals(id);
+        }
+
+        let rotating = false;
+
+        function onRotateStart(e: MouseEvent) {
+                if (e.button !== 0 || !nodeEl) return;
+                rotating = true;
+                e.stopPropagation();
+                e.preventDefault();
+
+                const rect = nodeEl.getBoundingClientRect();
+                const centerX = rect.left + rect.width / 2;
+                const centerY = rect.top + rect.height / 2;
+
+                function onMouseMove(ev: MouseEvent) {
+                        if (!rotating) return;
+                        const dx = ev.clientX - centerX;
+                        const dy = ev.clientY - centerY;
+                        let angle = (Math.atan2(dy, dx) * 180) / Math.PI;
+                        angle += 90;
+                        rotation = Math.round(angle);
+                        if (nodeEl) nodeEl.style.transform = `rotate(${rotation}deg)`;
+                }
+
+                function onMouseUp() {
+                        rotating = false;
+                        data.rotation = rotation;
+                        updateNodeInternals(id);
+                        window.removeEventListener('mousemove', onMouseMove);
+                        window.removeEventListener('mouseup', onMouseUp);
+                }
+
+                window.addEventListener('mousemove', onMouseMove);
+                window.addEventListener('mouseup', onMouseUp);
+        }
 </script>
 
-<NodeToolbar isVisible={selected} position={Position.Top} class="rounded-full border border-white/10 bg-surface-card px-2 py-1 flex gap-1 shadow-gestalt">
-	<button
-		onclick={handleDelete}
-		class="rounded-full p-2 text-pin-medium-gray hover:bg-pin-red hover:text-white transition-colors flex items-center justify-center pointer-events-auto"
-		title="Delete"
-	>
-		<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-			<path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
-		</svg>
-	</button>
+<NodeToolbar isVisible={selected} position={Position.Top} class="rounded-full border border-white/10 bg-surface-card px-2 py-1 flex gap-1 shadow-gestalt mb-6">      
+        <button
+                onclick={toggleRatio}
+                class="rounded-full p-2 transition-colors flex items-center justify-center pointer-events-auto {keepRatio ? 'bg-pin-red text-white' : 'text-pin-medium-gray hover:bg-surface-hover hover:text-white'}"
+                title="Lock Aspect Ratio"
+        >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+        </button>
+        {#if rotation !== 0}
+                <button
+                        onclick={resetRotation}
+                        class="rounded-full p-2 text-pin-medium-gray hover:bg-pin-red hover:text-white transition-colors flex items-center justify-center pointer-events-auto font-bold text-[10px]"
+                        title="Reset Rotation"
+                >
+                        0°
+                </button>
+        {/if}
+        <button
+                onclick={handleDelete}
+                class="rounded-full p-2 text-pin-medium-gray hover:bg-pin-red hover:text-white transition-colors flex items-center justify-center pointer-events-auto"
+                title="Delete"
+        >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+                </svg>
+        </button>
 </NodeToolbar>
 
-<div class="image-node group relative overflow-hidden rounded-2xl border border-white/10 bg-surface-card shadow-gestalt transition-shadow hover:shadow-gestalt-hover {selected ? 'ring-2 ring-pin-red' : ''}">
-	<NodeResizer isVisible={selected} minWidth={100} minHeight={100} />
+<div
+        bind:this={nodeEl}
+        style="transform: rotate({rotation}deg);"
+        class="image-node group relative overflow-hidden rounded-2xl border border-white/10 bg-surface-card shadow-gestalt transition-shadow hover:shadow-gestalt-hover {selected ? 'ring-2 ring-pin-red overflow-visible' : 'overflow-hidden'}"
+>
+<<<<<<< HEAD
+        {#if selected}
+                <!-- Transform rotation dot -->
+                <div role="slider" aria-valuenow={rotation} tabindex="0" class="absolute -top-12 left-1/2 -translate-x-1/2 w-8 h-8 flex items-center justify-center cursor-grab active:cursor-grabbing z-50 nodrag" onmousedown={onRotateStart}>
+                        <div class="w-3 h-3 bg-pin-red border-2 border-white rounded-full shadow-md pointer-events-none"></div>
+                </div>
+                <!-- Connector line -->
+                <div class="absolute -top-8 left-1/2 -translate-x-1/2 w-px h-8 bg-pin-red/50 pointer-events-none"></div>
+        {/if}
+=======
+{#if selected && !isLocked}
+        <!-- Transform rotation dot -->
+        <div role="slider" aria-valuenow={rotation} tabindex="0" class="absolute -top-16 left-1/2 -translate-x-1/2 w-16 h-16 flex items-center justify-center cursor-grab active:cursor-grabbing z-50 nodrag" onmousedown={onRotateStart}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="bg-pin-red rounded-full p-[4px] shadow-lg"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+        </div>
+        <!-- Connector line -->
+        <div class="absolute -top-14 left-1/2 -translate-x-1/2 w-px h-14 bg-pin-red/50 pointer-events-none -z-10"></div>
+{/if}
+>>>>>>> 39e1371 (fixup! feat(web): add image node rotation and aspect ratio controls)
+
+        <NodeResizer isVisible={selected} minWidth={100} minHeight={100} keepAspectRatio={keepRatio} />
 	{#if data?.imageUrl}
 		<img
 			src={data.imageUrl as string}
