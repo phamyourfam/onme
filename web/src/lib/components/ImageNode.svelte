@@ -1,15 +1,58 @@
 ﻿<script lang="ts">
-import { Handle, Position, type NodeProps, NodeResizer, NodeToolbar, useUpdateNodeInternals, useSvelteFlow } from '@xyflow/svelte';
-import { deleteMoodboardNode } from "$lib/api";
+import { Handle, Position, type NodeProps, NodeResizeControl, NodeToolbar, useUpdateNodeInternals, useSvelteFlow } from '@xyflow/svelte';
+import { deleteMoodboardNode, updateMoodboardNode } from "$lib/api";
 
 let { id, data, selected }: NodeProps = $props();
 
-const { deleteElements, updateNode } = useSvelteFlow();
+const { deleteElements, updateNode, updateNodeData } = useSvelteFlow();
 const updateNodeInternals = useUpdateNodeInternals();
 
 let rotation = $state(0);
 let isLocked = $state(false);
 let nodeEl = $state<HTMLElement>();
+let imgEl = $state<HTMLImageElement>();
+
+function handleResizeEnd(evt: any, params: any) {
+        if (data.moodboardId) {
+                updateMoodboardNode(data.moodboardId as string, id, {
+                        x: params.x,
+                        y: params.y,
+                        width: params.width,
+                        height: params.height
+                }).catch(console.error);
+        }
+}
+
+function resetAspectRatio() {
+        if (!imgEl) return;
+        const nw = imgEl.naturalWidth;
+        const nh = imgEl.naturalHeight;
+        if (!nw || !nh) return;
+
+        const currentWidth = nodeEl?.clientWidth || nw;
+        const newHeight = Math.round(currentWidth * (nh / nw));
+
+        // Use updateNode to resize SvelteFlow node bounds directly
+        updateNode(id, {
+            width: currentWidth,
+            height: newHeight,
+            style: `width: ${currentWidth}px; height: ${newHeight}px;`
+        });
+        
+        updateNodeInternals(id);
+
+        if (data.moodboardId) {
+                const x = nodeEl?.getBoundingClientRect().x ?? 0;
+                const y = nodeEl?.getBoundingClientRect().y ?? 0;
+                
+                updateMoodboardNode(data.moodboardId as string, id, {
+                        x: Number(data.x ?? 0),
+                        y: Number(data.y ?? 0),
+                        width: currentWidth,
+                        height: newHeight
+                }).catch(console.error);
+        }
+}
 
 $effect(() => {
 rotation = (data.rotation as number) || 0;
@@ -113,6 +156,15 @@ title="Reset Rotation"
 0&deg;
 </button>
 {/if}
+{#if !isLocked}
+<button
+onclick={resetAspectRatio}
+class="rounded-full p-2 text-pin-medium-gray hover:bg-pin-red hover:text-white transition-colors flex items-center justify-center font-bold text-[10px]"
+title="Reset Aspect Ratio"
+>
+1:1
+</button>
+{/if}
 <button
 onclick={handleDelete}
 class="rounded-full p-2 text-pin-medium-gray hover:bg-pin-red hover:text-white transition-colors flex items-center justify-center"
@@ -138,14 +190,27 @@ class="image-node group flex items-center justify-center relative rounded-2xl bo
         <div class="absolute -top-14 left-1/2 -translate-x-1/2 w-px h-14 bg-pin-red/50 pointer-events-none -z-10"></div>
 {/if}
 
-<NodeResizer isVisible={selected && !isLocked} minWidth={100} minHeight={100} keepAspectRatio={false} handleClass="!w-4 !h-4 !bg-pin-red !border-2 !border-white !rounded-full shadow-md !z-50" />
+{#if selected && !isLocked}
+        <!-- Corner Handles: Maintain aspect ratio -->
+        <NodeResizeControl position={"top-left" as any} keepAspectRatio={true} variant={"handle" as any} minWidth={100} minHeight={100} onResizeEnd={handleResizeEnd} class="!w-4 !h-4 !bg-pin-red !border-2 !border-white !rounded-full shadow-md !z-50" />
+        <NodeResizeControl position={"top-right" as any} keepAspectRatio={true} variant={"handle" as any} minWidth={100} minHeight={100} onResizeEnd={handleResizeEnd} class="!w-4 !h-4 !bg-pin-red !border-2 !border-white !rounded-full shadow-md !z-50" />
+        <NodeResizeControl position={"bottom-left" as any} keepAspectRatio={true} variant={"handle" as any} minWidth={100} minHeight={100} onResizeEnd={handleResizeEnd} class="!w-4 !h-4 !bg-pin-red !border-2 !border-white !rounded-full shadow-md !z-50" />
+        <NodeResizeControl position={"bottom-right" as any} keepAspectRatio={true} variant={"handle" as any} minWidth={100} minHeight={100} onResizeEnd={handleResizeEnd} class="!w-4 !h-4 !bg-pin-red !border-2 !border-white !rounded-full shadow-md !z-50" />
+
+        <!-- Edge Lines: Free stretch/squash without aspect ratio -->
+        <NodeResizeControl position={"top" as any} keepAspectRatio={false} variant={"line" as any} minWidth={100} minHeight={100} onResizeEnd={handleResizeEnd} class="!w-full !h-4 !bg-transparent !border-none !z-50 !-top-2" />
+        <NodeResizeControl position={"bottom" as any} keepAspectRatio={false} variant={"line" as any} minWidth={100} minHeight={100} onResizeEnd={handleResizeEnd} class="!w-full !h-4 !bg-transparent !border-none !z-50 !-bottom-2" />
+        <NodeResizeControl position={"left" as any} keepAspectRatio={false} variant={"line" as any} minWidth={100} minHeight={100} onResizeEnd={handleResizeEnd} class="!h-full !w-4 !bg-transparent !border-none !z-50 !-left-2" />
+        <NodeResizeControl position={"right" as any} keepAspectRatio={false} variant={"line" as any} minWidth={100} minHeight={100} onResizeEnd={handleResizeEnd} class="!h-full !w-4 !bg-transparent !border-none !z-50 !-right-2" />
+{/if}
 
 <div class="w-full h-full rounded-2xl overflow-hidden flex items-center justify-center pointer-events-none">
 {#if data?.imageUrl}
         <img
+                bind:this={imgEl}
                 src={data.imageUrl as string}
                 alt={(data.label as string) ?? 'Image'}
-                class="w-full h-full object-fill pointer-events-auto"      
+                class="w-full h-full object-fill pointer-events-auto"
                 draggable="false"
         />
 {:else}
